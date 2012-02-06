@@ -11,6 +11,18 @@
 from cctbx.sgtbx import space_group, space_group_symbols
 from cctbx.uctbx import unit_cell
 
+def number_residues_estimate(cell, pointgroup):
+    '''Guess the number of residues in the ASU, assuming 50% solvent etc.'''
+
+    sg = space_group(space_group_symbols(pointgroup).hall())
+    uc = unit_cell(cell)
+
+    n_ops = len(sg.all_ops())
+
+    v_asu = uc.volume() / n_ops
+
+    return int(round(v_asu / (2.7 * 128)))
+
 def number_sites_estimate(cell, pointgroup):
     '''Guess # heavy atoms likely to be in here (as a floating point number)
     based on Matthews coefficient, average proportion of methionine in

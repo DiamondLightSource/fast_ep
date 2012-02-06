@@ -24,8 +24,12 @@ if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
 from generate_possible_spacegroups import generate_chiral_spacegroups_unique
-from number_sites_estimate import number_sites_estimate
+from number_sites_estimate import number_sites_estimate, \
+     number_residues_estimate
+from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
+
+from fast_ep_helpers import autosharp
 
 def useful_number_sites(cell, pointgroup):
     nha = number_sites_estimate(cell, pointgroup)
@@ -79,6 +83,8 @@ def fast_ep(hklin):
             unit_cell = crystal.unit_cell().parameters()
 
     # first run mtz2sca on this input => sad.sca
+
+    print 'Unit cell: %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell
 
     run_job('mtz2sca', [hklin, 'sad.sca'])
 
@@ -153,11 +159,31 @@ def fast_ep(hklin):
             (cc, cc_weak, cfom) = results[(spacegroup, nsites)]
 
             if (spacegroup, nsites) == (best_spacegroup, best_nsites):
-                print '%10s %2d %6.2f %6.2f %6.2f ***' % \
+                print '%10s %3d %6.2f %6.2f %6.2f ***' % \
                       (spacegroup, nsites, cc, cc_weak, cfom)
             else:
-                print '%10s %2d %6.2f %6.2f %6.2f' % \
+                print '%10s %3d %6.2f %6.2f %6.2f' % \
                       (spacegroup, nsites, cc, cc_weak, cfom)
+
+    atom, wavelength = guess_the_atom(hklin, best_nsites)
+    nres = number_residues_estimate(unit_cell, pointgroup)
+    user = os.environ['USER']
+    
+    fout = open('sharp.sh', 'w')
+
+    fout.write('reindex hklin %s hklout reindex.mtz << eof\n' % hklin)
+    fout.write('symm %s\n' % best_spacegroup)
+    fout.write('eof\n')
+    fout.write('truncate hklin reindex.mtz hklout fast_ep.mtz << eof\n')
+    fout.write('nres %d\n' % nres)
+    fout.write('eof\n')
+    fout.write('cat > .autoSHARP << eof\n')
+    fout.write(
+        autosharp(nres, user, wavelength, atom, best_nsites, 'fast_ep.mtz'))
+    fout.write('\neof\n')
+    fout.write('$BDG_home/bin/sharp/detect.sh > detect.html 2>&1 &\n')
+    fout.close()
+
                 
 if __name__ == '__main__':
     fast_ep(sys.argv[1])
