@@ -94,7 +94,7 @@ def fast_ep(hklin):
              'spag %s' % spacegroup_0,
              'find %d' % nsites_0,
              'mind -3.5',
-             'ntry 100'])
+             'ntry 500'])
     
     # then for all possible spacegroups and all possible numbers of
     # sites modify the ins file and run shelxd on the cluster.
@@ -125,17 +125,37 @@ def fast_ep(hklin):
         while not is_cluster_job_finished(job_id):
             time.sleep(1)
 
+    results = { }
+
+    best_cfom = 0.0
+    best_spacegroup = None
+    best_nsites = None
+
     for spacegroup in generate_chiral_spacegroups_unique(pointgroup):
         for nsites in useful_number_sites(unit_cell, pointgroup):
             res = open(os.path.join(working_directory, spacegroup, str(nsites),
                                     'sad_fa.res'), 'r').readlines()
+
             cc = float(res[0].split()[5])
             cc_weak = float(res[0].split()[7])
             cfom = float(res[0].split()[9])
 
-            print '%10s %2d %6.2f %6.2f %6.2f' % \
-                  (spacegroup, nsites, cc, cc_weak, cfom)
+            results[(spacegroup, nsites)] = (cc, cc_weak, cfom)
 
+            if cfom > best_cfom:
+                best_cfom = cfom
+                best_spacegroup = spacegroup
+                best_nsites = nsites
+
+    for spacegroup in generate_chiral_spacegroups_unique(pointgroup):
+        for nsites in useful_number_sites(unit_cell, pointgroup):
+            if (spacegroup, nsites) == (best_spacegroup, best_nsites):
+                print '%10s %2d %6.2f %6.2f %6.2f ***' % \
+                      (spacegroup, nsites, cc, cc_weak, cfom)
+            else:
+                print '%10s %2d %6.2f %6.2f %6.2f' % \
+                      (spacegroup, nsites, cc, cc_weak, cfom)
+                
 if __name__ == '__main__':
     fast_ep(sys.argv[1])
     
