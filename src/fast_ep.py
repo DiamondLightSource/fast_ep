@@ -50,7 +50,7 @@ def modify_ins_text(ins_text, spacegroup, nsites):
 
     new_text = []
 
-    symm = [op.as_xyz().upper() for op in 
+    symm = [op.as_xyz().upper() for op in
             space_group(space_group_symbols(spacegroup).hall()).smx()]
 
     for record in ins_text:
@@ -73,7 +73,7 @@ class logger:
     def __init__(self):
         self._fout = open('fast_ep.log', 'w')
         return
-        
+
     def __del__(self):
         self._fout.close()
         self._cout = None
@@ -83,7 +83,7 @@ class logger:
         print line
         self._fout.write('%s\n' % line)
         return
-    
+
 def fast_ep(hklin):
     '''Quickly (i.e. with the aid of lots of CPUs) try to experimentally
     phase the data in here.'''
@@ -95,7 +95,7 @@ def fast_ep(hklin):
     working_directory = os.getcwd()
 
     m = mtz.object(hklin)
-    
+
     pointgroup = m.space_group().type().number()
 
     for crystal in m.crystals():
@@ -131,7 +131,7 @@ def fast_ep(hklin):
 
     for spacegroup in generate_chiral_spacegroups_unique(pointgroup):
         for nsites in useful_number_sites(unit_cell, pointgroup):
-            
+
             wd = os.path.join(working_directory, spacegroup, str(nsites))
             if not os.path.exists(wd):
                 os.makedirs(wd)
@@ -202,7 +202,7 @@ def fast_ep(hklin):
     log('Probable atom: %s' % atom)
 
     # copy back result files
-    
+
     best = os.path.join(working_directory, best_spacegroup, str(best_nsites))
 
     for ending in 'lst', 'pdb', 'res':
@@ -214,7 +214,7 @@ def fast_ep(hklin):
     # in 5% steps
 
     job_ids = []
-    
+
     for solvent_fraction in range(25, 76, 5):
         solvent = '%.2f' % (0.01 * solvent_fraction)
         wd = os.path.join(working_directory, solvent)
@@ -295,7 +295,7 @@ def fast_ep(hklin):
                             '-cell', '%f %f %f %f %f %f' % unit_cell,
                             '-spacegroup', spacegroup_full(best_spacegroup)],
             [], working_directory)
-            
+
     # below follows hacky code to write an autoSHARP script...
 
     fout = open('sharp.sh', 'w')
@@ -315,7 +315,6 @@ def fast_ep(hklin):
     fout.close()
 
     log('Time: %.2fs' % (time.time() - start_time))
-                
+
 if __name__ == '__main__':
     fast_ep(sys.argv[1])
-    

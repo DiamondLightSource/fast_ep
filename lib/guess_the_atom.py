@@ -11,7 +11,6 @@
 
 import sys
 import math
-import os
 from iotbx import mtz
 from cctbx.eltbx import sasaki
 
@@ -73,7 +72,7 @@ def guess_the_atom(hklin, nsites):
                         best_atom = atom
 
     return best_atom, wavelength
-                    
+
 if __name__ == '__main__':
 
     print guess_the_atom(sys.argv[1], int(sys.argv[2]))

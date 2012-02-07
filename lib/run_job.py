@@ -75,7 +75,7 @@ def run_job_cluster(executable, arguments = [], stdin = [],
             script.write('%s\n' % record)
         script.write('eof\n')
     else:
-        script.write('%s\n' % command_line)        
+        script.write('%s\n' % command_line)
 
     script.close()
 
@@ -87,7 +87,7 @@ def run_job_cluster(executable, arguments = [], stdin = [],
         qsub_output = run_job(
             'qsub', ['-V', '-cwd', '-q', 'medium.q',
                      'FEP_%s.sh' % rs], [], working_directory)
-        
+
     job_id = int(qsub_output[0].split()[2])
 
     return job_id
@@ -101,4 +101,3 @@ def is_cluster_job_finished(job_id):
             return False
 
     return True
-

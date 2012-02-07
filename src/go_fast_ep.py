@@ -5,10 +5,10 @@
 # Fast experimental phasing in the spirit of fast_dp, starting from nothing
 # and using brute force (and educated guesses) to get everything going.
 #
-# a little program to decide to go (or no) 
+# a little program to decide to go (or no)
 #
 # criteria -
-# 
+#
 # low resolution Rmerge < 5%
 # overall completeness > 95%
 # then mid slope > 1.3 or mid slope > 1.15 and resolution better than 1.5
@@ -21,7 +21,7 @@ def parse_fast_dp_log(fast_dp_log):
     completeness = None
     mid_slope = None
     rmerge_low = None
-    
+
     for record in open(fast_dp_log):
         if 'High resolution' in record:
             resolution = float(record.split()[2])
@@ -50,4 +50,3 @@ def go_fast_ep(fast_dp_log):
 
 if __name__ == '__main__':
     print go_fast_ep(sys.argv[1])
-        
