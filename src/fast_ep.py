@@ -23,7 +23,8 @@ fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
-from generate_possible_spacegroups import generate_chiral_spacegroups_unique
+from generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
+     spacegroup_enantiomorph, spacegroup_full
 from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
@@ -67,10 +68,29 @@ def modify_ins_text(ins_text, spacegroup, nsites):
             new_text.append(record.strip())
 
     return new_text
+
+class logger:
+    def __init__(self):
+        self._fout = open('fast_ep.log', 'w')
+        return
+        
+    def __del__(self):
+        self._fout.close()
+        self._cout = None
+        return
+
+    def __call__(self, line):
+        print line
+        self._fout.write('%s\n' % line)
+        return
     
 def fast_ep(hklin):
     '''Quickly (i.e. with the aid of lots of CPUs) try to experimentally
     phase the data in here.'''
+
+    start_time = time.time()
+
+    log = logger()
 
     working_directory = os.getcwd()
 
@@ -84,7 +104,7 @@ def fast_ep(hklin):
 
     # first run mtz2sca on this input => sad.sca
 
-    print 'Unit cell: %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell
+    log('Unit cell: %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell)
 
     run_job('mtz2sca', [hklin, 'sad.sca'])
 
@@ -101,7 +121,7 @@ def fast_ep(hklin):
              'find %d' % nsites_0,
              'mind -3.5',
              'ntry 200'])
-    
+
     # then for all possible spacegroups and all possible numbers of
     # sites modify the ins file and run shelxd on the cluster.
 
@@ -124,7 +144,7 @@ def fast_ep(hklin):
             open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
                 '\n'.join(new_text))
 
-            job_id = run_job_cluster('shelxd_mp', ['-L4', 'sad_fa'], [], wd)
+            job_id = run_job_cluster('shelxd_mp', ['-L4', 'sad_fa'], [], wd, 8)
             job_ids.append(job_id)
 
     for job_id in job_ids:
@@ -146,7 +166,17 @@ def fast_ep(hklin):
             cc_weak = float(res[0].split()[7])
             cfom = float(res[0].split()[9])
 
-            results[(spacegroup, nsites)] = (cc, cc_weak, cfom)
+            # estimate real # sites - as drop below 30% relative occupancy
+
+            nsites_real = 0
+
+            for record in res:
+                if not 'SE' in record[:2]:
+                    continue
+                if float(record.split()[5]) > 0.3:
+                    nsites_real += 1
+
+            results[(spacegroup, nsites)] = (cc, cc_weak, cfom, nsites_real)
 
             if cfom > best_cfom:
                 best_cfom = cfom
@@ -156,21 +186,121 @@ def fast_ep(hklin):
     for spacegroup in generate_chiral_spacegroups_unique(pointgroup):
         for nsites in useful_number_sites(unit_cell, pointgroup):
 
-            (cc, cc_weak, cfom) = results[(spacegroup, nsites)]
+            (cc, cc_weak, cfom, nsites_real) = results[(spacegroup, nsites)]
 
             if (spacegroup, nsites) == (best_spacegroup, best_nsites):
-                print '%10s %3d %6.2f %6.2f %6.2f ***' % \
-                      (spacegroup, nsites, cc, cc_weak, cfom)
+                log('%10s %3d %6.2f %6.2f %6.2f %3d ***' % \
+                    (spacegroup, nsites, cc, cc_weak, cfom, nsites_real))
             else:
-                print '%10s %3d %6.2f %6.2f %6.2f' % \
-                      (spacegroup, nsites, cc, cc_weak, cfom)
+                log('%10s %3d %6.2f %6.2f %6.2f %3d' % \
+                    (spacegroup, nsites, cc, cc_weak, cfom, nsites_real))
 
     atom, wavelength = guess_the_atom(hklin, best_nsites)
     nres = number_residues_estimate(unit_cell, pointgroup)
     user = os.environ['USER']
+
+    log('Probable atom: %s' % atom)
+
+    # copy back result files
     
+    best = os.path.join(working_directory, best_spacegroup, str(best_nsites))
+
+    for ending in 'lst', 'pdb', 'res':
+        shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
+                        os.path.join(working_directory, 'sad_fa.%s' % ending))
+
+    # now see if we can phase with shelxe - to get the enantiomorph and
+    # solvent fraction, run these on the cluster too... loop over 25 to 75%
+    # in 5% steps
+
+    job_ids = []
+    
+    for solvent_fraction in range(25, 76, 5):
+        solvent = '%.2f' % (0.01 * solvent_fraction)
+        wd = os.path.join(working_directory, solvent)
+        if not os.path.exists(wd):
+            os.makedirs(wd)
+        shutil.copyfile(os.path.join(working_directory, 'sad.hkl'),
+                        os.path.join(wd, 'sad.hkl'))
+        for ending in 'lst', 'pdb', 'res', 'hkl':
+            shutil.copyfile(
+                os.path.join(working_directory, 'sad_fa.%s' % ending),
+                os.path.join(wd, 'sad_fa.%s' % ending))
+        job_id = run_job_cluster(
+            'shelxe', ['sad', 'sad_fa', '-h', '-s%s' % solvent,
+                       '-m20'], [], wd)
+        job_ids.append(job_id)
+        job_id = run_job_cluster(
+            'shelxe', ['sad', 'sad_fa', '-h', '-s%s' % solvent,
+                       '-m20', '-i'], [], wd)
+        job_ids.append(job_id)
+
+    for job_id in job_ids:
+        while not is_cluster_job_finished(job_id):
+            time.sleep(1)
+
+    results = { }
+
+    best_fom = 0.0
+    best_solvent = None
+    best_enantiomorph = None
+
+    for solvent_fraction in range(25, 76, 5):
+        solvent = '%.2f' % (0.01 * solvent_fraction)
+        wd = os.path.join(working_directory, solvent)
+        for record in open(os.path.join(wd, 'sad.lst')):
+            if 'Estimated mean FOM =' in record:
+                fom_orig = float(record.split()[4])
+        for record in open(os.path.join(wd, 'sad_i.lst')):
+            if 'Estimated mean FOM =' in record:
+                fom_oh = float(record.split()[4])
+        results[solvent] = (fom_orig, fom_oh)
+        if fom_orig > best_fom:
+            best_fom = fom_orig
+            best_sovent = solvent
+            best_enantiomorph = 'original'
+        if fom_oh > best_fom:
+            best_fom = fom_oh
+            best_solvent = solvent
+            best_enantiomorph = 'inverted'
+
+    for solvent_fraction in range(25, 76, 5):
+        solvent = '%.2f' % (0.01 * solvent_fraction)
+        fom_orig, fom_oh = results[solvent]
+        if solvent == best_solvent:
+            log('%.2f %.3f %.3f ***' % \
+                (0.01 * solvent_fraction, fom_orig, fom_oh))
+        else:
+            log('%.2f %.3f %.3f' % \
+                (0.01 * solvent_fraction, fom_orig, fom_oh))
+
+    # copy best results back, convert to an mtz file
+
+    best = os.path.join(working_directory, best_solvent)
+
+    if best_enantiomorph == 'original':
+        for ending in 'phs', 'pha', 'lst', 'hat':
+            shutil.copyfile(os.path.join(best, 'sad.%s' % ending),
+                            os.path.join(working_directory, 'sad.%s' % ending))
+    else:
+        for ending in 'phs', 'pha', 'lst', 'hat':
+            shutil.copyfile(os.path.join(best, 'sad_i.%s' % ending),
+                            os.path.join(working_directory, 'sad.%s' % ending))
+        best_spacegroup = spacegroup_enantiomorph(best_spacegroup)
+
+    log('Best spacegroup: %s' % best_spacegroup)
+
+    run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
+                            '-colin', 'F FOM PHI SIGF',
+                            '-cell', '%f %f %f %f %f %f' % unit_cell,
+                            '-spacegroup', spacegroup_full(best_spacegroup)],
+            [], working_directory)
+            
+    # below follows hacky code to write an autoSHARP script...
+
     fout = open('sharp.sh', 'w')
 
+    fout.write('module load sharp/beta-2011-07-20\n')
     fout.write('reindex hklin %s hklout reindex.mtz << eof\n' % hklin)
     fout.write('symm %s\n' % best_spacegroup)
     fout.write('eof\n')
@@ -181,9 +311,10 @@ def fast_ep(hklin):
     fout.write(
         autosharp(nres, user, wavelength, atom, best_nsites, 'fast_ep.mtz'))
     fout.write('\neof\n')
-    fout.write('$BDG_home/bin/sharp/detect.sh > detect.html 2>&1 &\n')
+    fout.write('$BDG_home/bin/sharp/detect.sh | tee detect.html 2>&1\n')
     fout.close()
 
+    log('Time: %.2fs' % (time.time() - start_time))
                 
 if __name__ == '__main__':
     fast_ep(sys.argv[1])

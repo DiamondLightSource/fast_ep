@@ -15,6 +15,15 @@
 from cctbx.sgtbx import space_group, space_group_symbols, \
      space_group_symbol_iterator
 
+def spacegroup_enantiomorph(spacegroup_name):
+    sg = space_group(space_group_symbols(spacegroup_name).hall())
+    enantiomorph = sg.change_basis(sg.type().change_of_hand_op())
+    return enantiomorph.type().lookup_symbol().replace(' ', '')
+
+def spacegroup_full(spacegroup_name):
+    return space_group(space_group_symbols(
+        spacegroup_name).hall()).type().lookup_symbol()
+
 def generate_chiral_spacegroups_unique(pointgroup):
     sg = space_group(space_group_symbols(pointgroup).hall())
     pg = sg.build_derived_patterson_group()

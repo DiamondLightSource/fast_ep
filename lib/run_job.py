@@ -52,7 +52,7 @@ def run_job(executable, arguments = [], stdin = [], working_directory = None):
     return output
 
 def run_job_cluster(executable, arguments = [], stdin = [],
-                    working_directory = None):
+                    working_directory = None, ncpu = 1):
     '''Run a program with some command-line arguments and some input,
     then return the standard output when it is finished.'''
 
@@ -79,10 +79,15 @@ def run_job_cluster(executable, arguments = [], stdin = [],
 
     script.close()
 
-    qsub_output = run_job('qsub',
-                          ['-V', '-pe', 'smp', '8', '-cwd', '-q', 'medium.q',
-                           'FEP_%s.sh' % rs], [], working_directory)
-
+    if ncpu > 1:
+        qsub_output = run_job(
+            'qsub', ['-V', '-pe', 'smp', str(ncpu), '-cwd', '-q', 'medium.q',
+                     'FEP_%s.sh' % rs], [], working_directory)
+    else:
+        qsub_output = run_job(
+            'qsub', ['-V', '-cwd', '-q', 'medium.q',
+                     'FEP_%s.sh' % rs], [], working_directory)
+        
     job_id = int(qsub_output[0].split()[2])
 
     return job_id
