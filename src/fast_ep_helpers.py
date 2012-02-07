@@ -7,6 +7,8 @@
 #
 # format_for_autosharp - format an input file for autosharp.
 
+import os
+
 _autosharp_file = '''
 # ----------------------------------------
 # General information about project
@@ -35,6 +37,11 @@ _autosharp_file = '''
   autoSHARP_EntryPoint3_Path3_Opt="7"
   autoSHARP_DetectPgm="shelx"
 # ----------------------------------------
+# Ersatz CCP4i stuff
+# ----------------------------------------
+  autoSHARP_RunningType="ccp4i"
+  autoSHARP_ccp4i_workdir="{working_dir:s}"
+# ----------------------------------------
 # Dataset 1
 # ----------------------------------------
   autoSHARP_iden_1="peak"
@@ -57,6 +64,7 @@ def autosharp(nres, user, wavelength, atom, nsites, hklin):
     return _autosharp_file.format(
         nres = nres,
         user = user,
+        working_dir = os.getcwd(),
         wavelength = wavelength,
         atom = atom,
         nsites = nsites,
