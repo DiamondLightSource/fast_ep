@@ -51,7 +51,7 @@ def modify_ins_text(ins_text, spacegroup, nsites):
     new_text = []
 
     symm = [op.as_xyz().upper() for op in 
-            space_group(space_group_symbols(spacegroup).hall()).all_ops()]
+            space_group(space_group_symbols(spacegroup).hall()).smx()]
 
     for record in ins_text:
         if 'SYMM' in record:
