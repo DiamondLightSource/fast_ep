@@ -257,7 +257,7 @@ def fast_ep(hklin):
         results[solvent] = (fom_orig, fom_oh)
         if fom_orig > best_fom:
             best_fom = fom_orig
-            best_sovent = solvent
+            best_solvent = solvent
             best_enantiomorph = 'original'
         if fom_oh > best_fom:
             best_fom = fom_oh
