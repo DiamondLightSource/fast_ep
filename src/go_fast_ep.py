@@ -40,7 +40,7 @@ def go_fast_ep(fast_dp_log):
 
     if rmerge_low > 0.05:
         return 'No'
-    if completeness < 0.95:
+    if completeness < 95:
         return 'No'
     if mid_slope > 1.3:
         return 'Go'
