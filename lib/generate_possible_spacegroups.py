@@ -24,6 +24,12 @@ def spacegroup_full(spacegroup_name):
     return space_group(space_group_symbols(
         spacegroup_name).hall()).type().lookup_symbol()
 
+def sanitize_spacegroup(spacegroup_name):
+    if not ':' in spacegroup_name:
+        return spacegroup_name
+    assert(spacegroup_name.startswith('R'))
+    return 'H%s' % spacegroup_name.split(':')[0][1:]
+
 def generate_chiral_spacegroups_unique(pointgroup):
     sg = space_group(space_group_symbols(pointgroup).hall())
     pg = sg.build_derived_patterson_group()

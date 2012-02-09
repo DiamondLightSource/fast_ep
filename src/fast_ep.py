@@ -24,7 +24,7 @@ if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
 from generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
-     spacegroup_enantiomorph, spacegroup_full
+     spacegroup_enantiomorph, spacegroup_full, sanitize_spacegroup
 from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
@@ -114,13 +114,15 @@ def fast_ep(hklin):
     spacegroup_0 = generate_chiral_spacegroups_unique(pointgroup)[0]
     nsites_0 = useful_number_sites(unit_cell, pointgroup)[0]
 
-    run_job('shelxc', ['sad'],
-            ['sad sad.sca',
-             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell,
-             'spag %s' % spacegroup_0,
-             'find %d' % nsites_0,
-             'mind -3.5',
-             'ntry 200'])
+    shelxc_output = run_job('shelxc', ['sad'],
+                            ['sad sad.sca',
+                             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell,
+                             'spag %s' % sanitize_spacegroup(spacegroup_0),
+                             'find %d' % nsites_0,
+                             'mind -3.5',
+                             'ntry 200'])
+
+    open('shelxc.log', 'w').write(''.join(shelxc_output))
 
     # then for all possible spacegroups and all possible numbers of
     # sites modify the ins file and run shelxd on the cluster.
