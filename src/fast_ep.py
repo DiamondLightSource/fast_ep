@@ -11,6 +11,8 @@ import os
 import sys
 import time
 import shutil
+import math
+from multiprocessing import Pool
 
 from iotbx import mtz
 from cctbx.sgtbx import space_group, space_group_symbols
@@ -29,8 +31,8 @@ from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
-
 from fast_ep_helpers import autosharp
+from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res
 
 def useful_number_sites(cell, pointgroup):
     nha = number_sites_estimate(cell, pointgroup)
@@ -83,6 +85,160 @@ class logger:
         print line
         self._fout.write('%s\n' % line)
         return
+
+class Fast_ep:
+    '''A class to run shelxc / d / e to very quickly establish (i) whether
+    experimental phasing is likely to be successful and (ii) what the
+    correct parameteters and number of heavy atom sites.'''
+
+    def __init__(self, hklin):
+        '''Instantiate class and perform initial processing needed before the
+        real work is done.'''
+        
+        self._hklin = hklin
+        self._wd = os.getcwd()
+        self._log = logger()
+
+        # pull information we'll need from the input MTZ file - the unit cell,
+        # the pointgroup and the number of reflections in the file
+
+        m = mtz.object(hklin)
+
+        self._pointgroup = m.space_group().type().number()
+        for crystal in m.crystals():
+            if crystal.name() != 'HKL_base':
+                self._unit_cell = crystal.unit_cell().parameters()
+
+        self._nrefl = m.n_reflections()
+
+        self._log('Input:     %s' % hklin)
+        self._log('Unit cell: %.2f %.2f %.2f %.2f %.2f %.2f' % \
+                  self._unit_cell)
+        self._log('Nrefl:     %d' % self._nrefl)
+
+        # Now set up the job - run shelxc, assess anomalous signal, compute
+        # possible spacegroup options, generate scalepack format reflection
+        # file etc.
+
+        run_job('mtz2sca', [self._hklin, 'sad.sca'])
+
+        # in here run shelxc to generate the ins file (which will need to be
+        # modified) and the hkl files, which will need to be copied.
+
+        self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
+        self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
+
+        spacegroup = self._spacegroups[0]
+        nsite = self._nsites[0]
+
+        shelxc_output = run_job(
+            'shelxc', ['sad'],
+            ['sad sad.sca',
+             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell,
+             'spag %s' % sanitize_spacegroup(spacegroup),
+             'find %d' % nsite,
+             'mind -3.5',
+             'ntry 200'])
+
+        # FIXME in here perform some analysis of the shelxc output - how much
+        # anomalous signal was reported?
+ 
+        open('shelxc.log', 'w').write(''.join(shelxc_output))
+
+        # store the ins file text - will need to modify this when we come to
+        # run shelxd...
+        
+        self._ins_text = open('sad_fa.ins', 'r').readlines()
+
+        return
+
+    def find_sites(self, cluster = False, ncpu = 1, njobs = 1):
+        '''Actually perform the substructure calculation.'''
+
+        # set up N x M shelxd jobs
+
+        jobs = { }
+
+        nrefl = 1 + int(math.floor(self._nrefl / 10000.0))
+
+        for spacegroup in self._spacegroups:
+            for nsite in self._nsites:
+                wd = os.path.join(self._wd, spacegroup, str(nsites))
+                if not os.path.exists(wd):
+                    os.makedirs(wd)
+
+                new_text = modify_ins_text(self._ins_text, spacegroup, nsites)
+
+                shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
+                                os.path.join(wd, 'sad_fa.hkl'))
+
+                open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
+                    '\n'.join(new_text))
+
+                jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
+
+        # actually execute the tasks - either locally or on a cluster, allowing
+        # for potential for fewer available machines than jobs
+                 
+        pool = Pool(njobs)
+
+        if cluster:
+            pool.map(run_shelxd_cluster, jobs)
+        else:
+            pool.map(run_shelxd_local, jobs)
+
+        # now gather up all of the results, find the one with best cfom
+
+        best_cfom = 0.0
+
+        for spacegroup in self._spacegroups:
+            for nsite in self._nsites:
+                wd = os.path.join(self._wd, spacegroup, str(nsites))
+                res = open(os.path.join(wd, 'sad_fa.res')).readlines()
+
+                cc, cc_weak, cfom, nsite_real = analyse_res(res)
+
+                results[(spacegroup, nsite)] = (cc, cc_weak, cfom, nsite_real)
+
+                if cfom > best_cfom:
+                    best_cfom = cfom
+                    best_spacegroup = spacegroup
+                    best_nsite = nsite
+                    best_nsite_real = nsite_real
+
+        for spacegroup in self._spacegroups:
+            if spacegroup == best_spacegroup:
+                self._log('Spacegroup: %s (best)' % spacegroup)
+            else:
+                self._log('Spacegroup: %s' % spacegroup)
+                
+            for nsite in self._nsites:
+                (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite)]
+                if (spacegroup, nsite) == (best_spacegroup, best_nsite):
+                    self._log('%3d %6.2f %6.2f %6.2f %3d (best)' %
+                                    (nsite, cc, cc_weak, cfom, nsite_real))
+                else:
+                    self._log('%3d %6.2f %6.2f %6.2f %3d' %
+                                    (nsite, cc, cc_weak, cfom, nsite_real))
+
+        self._log('Best spacegroup: %s' % best_spacegroup)
+        self._log('Best nsites:     %d' % best_nsite_real)
+
+        atom, wavelength = guess_the_atom(hklin, best_nsites)
+        nres = number_residues_estimate(unit_cell, pointgroup)
+
+        self._log('Probable atom: %s' % atom)
+
+        # copy back result files
+
+        best = os.path.join(self._wd, best_spacegroup, str(best_nsites))
+
+        for ending in 'lst', 'pdb', 'res':
+            shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
+            os.path.join(self._wd, 'sad_fa.%s' % ending))
+
+        return
+    
 
 def fast_ep(hklin):
     '''Quickly (i.e. with the aid of lots of CPUs) try to experimentally
