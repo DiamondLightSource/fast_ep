@@ -33,6 +33,7 @@ from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_ep_helpers import autosharp
 from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res
+from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
 
 def useful_number_sites(cell, pointgroup):
     nha = number_sites_estimate(cell, pointgroup)
@@ -226,11 +227,9 @@ class Fast_ep:
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
 
-        atom, wavelength = guess_the_atom(self._hklin, best_nsite)
-        nres = number_residues_estimate(self._unit_cell, self._pointgroup)
-
-        self._log('Probable atom:   %s' % atom)
-
+        self._best_spacegroup = best_spacegroup
+        self._best_nsite = best_nsite_real
+        
         # copy back result files
 
         best = os.path.join(self._wd, best_spacegroup, str(best_nsite))
@@ -238,6 +237,99 @@ class Fast_ep:
         for ending in 'lst', 'pdb', 'res':
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
             os.path.join(self._wd, 'sad_fa.%s' % ending))
+
+        return
+
+    def phase(self, cluster = False, ncpu = 1, njobs = 1):
+        '''Perform the phasing following from the substructure determination,
+        using the best solution found. This will test a range of sensible
+        solvent fractions'''
+        
+        solvent_fractions = [0.25 + 0.05 * j for j in range(11)]
+
+        jobs = [ ]
+
+        for solvent_fraction in solvent_fractions:
+            wd = os.path.join(self._wd, '%.2f' % solvent_fraction)
+            if not os.path.exists(wd):
+                os.makedirs(wd)
+            shutil.copyfile(os.path.join(self._wd, 'sad.hkl'),
+                            os.path.join(wd, 'sad.hkl'))
+            for ending in 'lst', 'pdb', 'res', 'hkl':
+                shutil.copyfile(os.path.join(self._wd, 'sad_fa.%s' % ending),
+                                os.path.join(wd, 'sad_fa.%s' % ending))
+
+            jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
+                         'hand':'original', 'wd':wd})
+            jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
+                         'hand':'inverted', 'wd':wd})
+
+        pool = Pool(njobs * ncpu)
+
+        if cluster:
+            pool.map(run_shelxe_cluster, jobs)
+        else:
+            pool.map(run_shelxe_local, jobs)
+
+        results = { }
+
+        best_fom = 0.0
+        best_solvent = None
+        best_hand = None
+
+        for solvent_fraction in solvent_fractions:
+            wd = os.path.join(self._wd, '%.2f' % solvent_fraction)
+            for record in open(os.path.join(wd, 'sad.lst')):
+                if 'Estimated mean FOM =' in record:
+                    fom_orig = float(record.split()[4])
+            for record in open(os.path.join(wd, 'sad_i.lst')):
+                if 'Estimated mean FOM =' in record:
+                    fom_inv = float(record.split()[4])
+            results[solvent] = (fom_orig, fom_inv)
+
+            if fom_orig > best_fom:
+                best_fom = fom_orig
+                best_solvent = solvent
+                best_hand = 'original'
+
+            if fom_inv > best_fom:
+                best_fom = fom_inv
+                best_solvent = solvent
+                best_hand = 'inverted'
+
+        self._log('Solv. Orig. Inv.')
+        for solvent_fraction in solvent_fractions:
+            fom_orig, fom_inv = results[solvent]
+            if solvent == best_solvent:
+                self._log(
+                    '%.2f %.3f %.3f (best)' % (solvent, fom_orig, fom_inv))
+            else:
+                self._log('%.2f %.3f %.3f' % (solvent, fom_orig, fom_inv))
+
+        self._log('Best solvent: %.2f' % best_solvent)
+        self._log('Best hand:    %s' % best_hand)
+
+        wd = os.path.join(self._wd, '%.2f' % best_solvent)
+
+        if best_hand == 'original':
+            for ending in 'phs', 'pha', 'lst', 'hat':
+                shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
+                                os.path.join(self._wd, 'sad.%s' % ending))
+        else:
+            for ending in 'phs', 'pha', 'lst', 'hat':
+                shutil.copyfile(os.path.join(wd, 'sad_i.%s' % ending),
+                                os.path.join(self._wd, 'sad.%s' % ending))
+            self._best_spacegroup = spacegroup_enantiomorph(
+                self._best_spacegroup)
+
+        self._log('Best spacegroup: %s' % self._best_spacegroup)
+                
+        run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
+                                '-colin', 'F FOM PHI SIGF',
+                                '-cell', '%f %f %f %f %f %f' % unit_cell,
+                                '-spacegroup',
+                                spacegroup_full(self._best_spacegroup)],
+            [], working_directory)
 
         return
     
@@ -475,9 +567,10 @@ def fast_ep(hklin):
 
     log('Time: %.2fs' % (time.time() - start_time))
 
-if __name__ == '__main__' and True:
+if __name__ == '__main__' and False:
     fast_ep(sys.argv[1])
 
-if __name__ == '__main__' and False:
+if __name__ == '__main__' and True:
     fast_ep = Fast_ep(sys.argv[1])
     fast_ep.find_sites(cluster = False, ncpu = 8, njobs = 1)
+    fast_ep.phase(cluster = False, ncpu = 8, njobs = 1)
