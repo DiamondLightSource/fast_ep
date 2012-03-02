@@ -21,7 +21,7 @@ if not fast_ep_lib in sys.path:
 
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 
-def run_shelxd_cluster(settings)
+def run_shelxd_cluster(settings):
     '''Run shelxd_mp on cluster with settings given in dictionary, containing:
     
     nrefl = 1 + floor(nref / 100000) - space to allocate
@@ -33,7 +33,7 @@ def run_shelxd_cluster(settings)
     wd = settings['wd']
 
     job_id = run_job_cluster(
-        'shelxd_mp', ['-L%d' nrefl, 'sad_fa', '-t%d' % ncpu],
+        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
         [], wd, ncpu)
 
     while not is_cluster_job_finished(job_id):
@@ -41,7 +41,7 @@ def run_shelxd_cluster(settings)
 
     return
 
-def run_shelxd_local(settings)
+def run_shelxd_local(settings):
     '''Run shelxd_mp locally settings given in dictionary, containing:
     
     nrefl = 1 + floor(nref / 100000) - space to allocate
@@ -53,7 +53,7 @@ def run_shelxd_local(settings)
     wd = settings['wd']
 
     job_output = run_job(
-        'shelxd_mp', ['-L%d' nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
+        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
 
     return
 

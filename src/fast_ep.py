@@ -134,7 +134,7 @@ class Fast_ep:
         shelxc_output = run_job(
             'shelxc', ['sad'],
             ['sad sad.sca',
-             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % unit_cell,
+             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
              'spag %s' % sanitize_spacegroup(spacegroup),
              'find %d' % nsite,
              'mind -3.5',
@@ -157,17 +157,17 @@ class Fast_ep:
 
         # set up N x M shelxd jobs
 
-        jobs = { }
+        jobs = [ ]
 
         nrefl = 1 + int(math.floor(self._nrefl / 10000.0))
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
-                wd = os.path.join(self._wd, spacegroup, str(nsites))
+                wd = os.path.join(self._wd, spacegroup, str(nsite))
                 if not os.path.exists(wd):
                     os.makedirs(wd)
 
-                new_text = modify_ins_text(self._ins_text, spacegroup, nsites)
+                new_text = modify_ins_text(self._ins_text, spacegroup, nsite)
 
                 shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
                                 os.path.join(wd, 'sad_fa.hkl'))
@@ -191,9 +191,11 @@ class Fast_ep:
 
         best_cfom = 0.0
 
+        results = { }
+
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
-                wd = os.path.join(self._wd, spacegroup, str(nsites))
+                wd = os.path.join(self._wd, spacegroup, str(nsite))
                 res = open(os.path.join(wd, 'sad_fa.res')).readlines()
 
                 cc, cc_weak, cfom, nsite_real = analyse_res(res)
@@ -216,22 +218,22 @@ class Fast_ep:
                 (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite)]
                 if (spacegroup, nsite) == (best_spacegroup, best_nsite):
                     self._log('%3d %6.2f %6.2f %6.2f %3d (best)' %
-                                    (nsite, cc, cc_weak, cfom, nsite_real))
+                              (nsite, cc, cc_weak, cfom, nsite_real))
                 else:
                     self._log('%3d %6.2f %6.2f %6.2f %3d' %
-                                    (nsite, cc, cc_weak, cfom, nsite_real))
+                              (nsite, cc, cc_weak, cfom, nsite_real))
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
 
-        atom, wavelength = guess_the_atom(hklin, best_nsites)
-        nres = number_residues_estimate(unit_cell, pointgroup)
+        atom, wavelength = guess_the_atom(self._hklin, best_nsite)
+        nres = number_residues_estimate(self._unit_cell, self._pointgroup)
 
-        self._log('Probable atom: %s' % atom)
+        self._log('Probable atom:   %s' % atom)
 
         # copy back result files
 
-        best = os.path.join(self._wd, best_spacegroup, str(best_nsites))
+        best = os.path.join(self._wd, best_spacegroup, str(best_nsite))
 
         for ending in 'lst', 'pdb', 'res':
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
@@ -239,7 +241,6 @@ class Fast_ep:
 
         return
     
-
 def fast_ep(hklin):
     '''Quickly (i.e. with the aid of lots of CPUs) try to experimentally
     phase the data in here.'''
@@ -474,5 +475,9 @@ def fast_ep(hklin):
 
     log('Time: %.2fs' % (time.time() - start_time))
 
-if __name__ == '__main__':
+if __name__ == '__main__' and True:
     fast_ep(sys.argv[1])
+
+if __name__ == '__main__' and False:
+    fast_ep = Fast_ep(sys.argv[1])
+    fast_ep.find_sites(cluster = False, ncpu = 8, njobs = 1)
