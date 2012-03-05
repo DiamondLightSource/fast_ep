@@ -33,7 +33,8 @@ def run_job(executable, arguments = [], stdin = [], working_directory = None):
                              stderr = subprocess.STDOUT,
                              cwd = working_directory,
                              universal_newlines = True,
-                             shell = True)
+                             shell = True,
+                             env = os.environ)
 
     for record in stdin:
         popen.stdin.write('%s\n' % record)
