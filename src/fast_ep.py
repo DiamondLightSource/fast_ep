@@ -15,6 +15,7 @@ import math
 from multiprocessing import Pool
 
 from iotbx import mtz
+from libtbx.phil import parse
 from cctbx.sgtbx import space_group, space_group_symbols
 
 if not 'FAST_EP_ROOT' in os.environ:
@@ -87,23 +88,64 @@ class logger:
         self._fout.write('%s\n' % line)
         return
 
+class Fast_ep_parameters:
+    '''A class to wrap up the parameters for fast_ep e.g. the number of machines
+    to use, the number of cpus on each machine, the input reflection file.'''
+
+    def __init__(self):
+        self._phil = parse("""
+fast_ep {
+  machines = 1
+    .type = int
+  cpu = 8
+    .type = int
+  input = 'fast_dp.mtz'
+    .type = str
+}
+""")
+        argument_interpreter = self._phil.command_line_argument_interpreter(
+            home_scope = 'fast_ep')
+        for argv in sys.argv[1:]:
+            command_line_phil = argument_interpreter.process(arg = argv)
+            self._phil = self._phil.fetch(command_line_phil)
+        self._parameters = self._phil.extract()
+        
+        return
+
+    def get_machines(self):
+        return self._parameters.fast_ep.machines
+
+    def get_cpu(self):
+        return self._parameters.fast_ep.cpu
+
+    def get_input(self):
+        return self._parameters.fast_ep.input
+
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
     correct parameteters and number of heavy atom sites.'''
 
-    def __init__(self, hklin):
+    def __init__(self, parameters):
         '''Instantiate class and perform initial processing needed before the
         real work is done.'''
         
-        self._hklin = hklin
+        self._hklin = parameters.get_input()
+        self._cpu = parameters.get_cpu()
+        self._machines = parameters.get_machines()
+
+        if self._machines == 1:
+            self._cluster = False
+        else:
+            self._cluster = True
+
         self._wd = os.getcwd()
         self._log = logger()
 
         # pull information we'll need from the input MTZ file - the unit cell,
         # the pointgroup and the number of reflections in the file
 
-        m = mtz.object(hklin)
+        m = mtz.object(self._hklin)
 
         self._pointgroup = m.space_group().type().number()
         for crystal in m.crystals():
@@ -112,7 +154,7 @@ class Fast_ep:
 
         self._nrefl = m.n_reflections()
 
-        self._log('Input:     %s' % hklin)
+        self._log('Input:     %s' % self._hklin)
         self._log('Unit cell: %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
         self._log('Nrefl:     %d' % self._nrefl)
@@ -120,6 +162,8 @@ class Fast_ep:
         # Now set up the job - run shelxc, assess anomalous signal, compute
         # possible spacegroup options, generate scalepack format reflection
         # file etc.
+
+        # FIXME check status of output here
 
         run_job('mtz2sca', [self._hklin, 'sad.sca'])
 
@@ -153,8 +197,12 @@ class Fast_ep:
 
         return
 
-    def find_sites(self, cluster = False, ncpu = 1, njobs = 1):
+    def find_sites(self):
         '''Actually perform the substructure calculation.'''
+
+        cluster = self._cluster
+        njobs = self._machines
+        ncpu = self._cpu
 
         # set up N x M shelxd jobs
 
@@ -240,11 +288,15 @@ class Fast_ep:
 
         return
 
-    def phase(self, cluster = False, ncpu = 1, njobs = 1):
+    def phase(self):
         '''Perform the phasing following from the substructure determination,
         using the best solution found. This will test a range of sensible
         solvent fractions'''
         
+        cluster = self._cluster
+        njobs = self._machines
+        ncpu = self._cpu
+
         solvent_fractions = [0.25 + 0.05 * j for j in range(11)]
 
         jobs = [ ]
@@ -336,6 +388,6 @@ class Fast_ep:
         return
     
 if __name__ == '__main__':
-    fast_ep = Fast_ep(sys.argv[1])
-    fast_ep.find_sites(cluster = False, ncpu = 8, njobs = 1)
-    fast_ep.phase(cluster = False, ncpu = 8, njobs = 1)
+    fast_ep = Fast_ep(Fast_ep_parameters())
+    fast_ep.find_sites()
+    fast_ep.phase()
