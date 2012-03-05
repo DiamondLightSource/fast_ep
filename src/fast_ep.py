@@ -285,26 +285,28 @@ class Fast_ep:
             for record in open(os.path.join(wd, 'sad_i.lst')):
                 if 'Estimated mean FOM =' in record:
                     fom_inv = float(record.split()[4])
-            results[solvent] = (fom_orig, fom_inv)
+            results[solvent_fraction] = (fom_orig, fom_inv)
 
             if fom_orig > best_fom:
                 best_fom = fom_orig
-                best_solvent = solvent
+                best_solvent = solvent_fraction
                 best_hand = 'original'
 
             if fom_inv > best_fom:
                 best_fom = fom_inv
-                best_solvent = solvent
+                best_solvent = solvent_fraction
                 best_hand = 'inverted'
 
         self._log('Solv. Orig. Inv.')
         for solvent_fraction in solvent_fractions:
-            fom_orig, fom_inv = results[solvent]
-            if solvent == best_solvent:
+            fom_orig, fom_inv = results[solvent_fraction]
+            if solvent_fraction == best_solvent:
                 self._log(
-                    '%.2f %.3f %.3f (best)' % (solvent, fom_orig, fom_inv))
+                    '%.2f %.3f %.3f (best)' % (solvent_fraction, fom_orig,
+                                               fom_inv))
             else:
-                self._log('%.2f %.3f %.3f' % (solvent, fom_orig, fom_inv))
+                self._log('%.2f %.3f %.3f' % (solvent_fraction, fom_orig,
+                                              fom_inv))
 
         self._log('Best solvent: %.2f' % best_solvent)
         self._log('Best hand:    %s' % best_hand)
@@ -326,10 +328,10 @@ class Fast_ep:
                 
         run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
                                 '-colin', 'F FOM PHI SIGF',
-                                '-cell', '%f %f %f %f %f %f' % unit_cell,
+                                '-cell', '%f %f %f %f %f %f' % self._unit_cell,
                                 '-spacegroup',
                                 spacegroup_full(self._best_spacegroup)],
-            [], working_directory)
+            [], self._wd)
 
         return
     
