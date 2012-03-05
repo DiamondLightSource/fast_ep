@@ -142,6 +142,8 @@ class Fast_ep:
         self._wd = os.getcwd()
         self._log = logger()
 
+        self._log('Using %d cpus / %d machines' % (self._cpu, self._machines))
+
         # pull information we'll need from the input MTZ file - the unit cell,
         # the pointgroup and the number of reflections in the file
 
@@ -199,6 +201,8 @@ class Fast_ep:
 
     def find_sites(self):
         '''Actually perform the substructure calculation.'''
+
+        t0 = time.time()
 
         cluster = self._cluster
         njobs = self._machines
@@ -272,6 +276,9 @@ class Fast_ep:
                     self._log('%3d %6.2f %6.2f %6.2f %3d' %
                               (nsite, cc, cc_weak, cfom, nsite_real))
 
+        t1 = time.time()
+        self._log('Time: %.2f' % (t1 - t0))
+
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
 
@@ -292,6 +299,8 @@ class Fast_ep:
         '''Perform the phasing following from the substructure determination,
         using the best solution found. This will test a range of sensible
         solvent fractions'''
+
+        t0 = time.time()
         
         cluster = self._cluster
         njobs = self._machines
@@ -384,6 +393,9 @@ class Fast_ep:
                                 '-spacegroup',
                                 spacegroup_full(self._best_spacegroup)],
             [], self._wd)
+
+        t1 = time.time()
+        self._log('Time: %.2f' % (t1 - t0))
 
         return
     
