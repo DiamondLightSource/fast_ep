@@ -232,8 +232,10 @@ class Fast_ep:
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
-                 
-        pool = Pool(njobs)
+
+        self._log('Running %d x shelxd_mp jobs' % len(jobs))
+        
+        pool = Pool(min(njobs, len(jobs)))
 
         if cluster:
             pool.map(run_shelxd_cluster, jobs)
@@ -324,6 +326,8 @@ class Fast_ep:
                          'hand':'original', 'wd':wd})
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
                          'hand':'inverted', 'wd':wd})
+
+        self._log('Running %d x shelxe jobs' % len(jobs))
 
         pool = Pool(min(njobs * ncpu, len(jobs)))
 
