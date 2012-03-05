@@ -325,7 +325,7 @@ class Fast_ep:
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
                          'hand':'inverted', 'wd':wd})
 
-        pool = Pool(njobs * ncpu)
+        pool = Pool(min(njobs * ncpu, len(jobs)))
 
         if cluster:
             pool.map(run_shelxe_cluster, jobs)
