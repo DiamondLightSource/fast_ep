@@ -212,7 +212,7 @@ class Fast_ep:
 
         jobs = [ ]
 
-        nrefl = 1 + int(math.floor(self._nrefl / 100000.0))
+        nrefl = 1 + int(math.floor(self._cpu * self._nrefl / 100000.0))
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:

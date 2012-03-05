@@ -55,6 +55,8 @@ def run_shelxd_local(settings):
     job_output = run_job(
         'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
 
+    open(os.path.join(wd, 'shelxd.log'), 'w').write(''.join(job_output))
+
     return
 
 def analyse_res(res):
