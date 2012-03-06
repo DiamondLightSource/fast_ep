@@ -1,0 +1,15 @@
+Fast EP - rapid experimental phasing via SAD based on brute force: Basic Principles
+
+Taking a reflection file with anomalous intensities merged in the correct point group, determine:
+
+ - a list of possible (enantiomorph unique) spacegroups
+ - a list of likely #s of heavy atom sites
+
+For each permutation a shelxd_mp task is run, with the run resulting in the highest CFOM (combined figure of merit) being selected as correct, with the number of sites actually found (with relative occupancy > 30%) returned. This should give:
+
+ - a confident estimate of the correct spacegroup
+ - a reasonable estimate of the number of heavy atom sites
+ - an indication of success / failure of the phasing experiment
+
+The results are then passed into a number of shelxe tasks, where the phasing is performed with a number of different solvent fractions in the range 25% to 75% in 5% steps and in both hands. If the hand of the spacegroup is changed with the enantiomorphic spacegroup the correct result will be shown. In this phasing step the results are scored by the pseudo-free CC. The result with the highest CC will be converted to mtz format.
+
