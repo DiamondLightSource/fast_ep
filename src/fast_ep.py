@@ -362,6 +362,8 @@ class Fast_ep:
                 best_solvent = solvent_fraction
                 best_hand = 'inverted'
 
+        self._best_solvent = best_solvent
+
         self._log('Solv. Orig. Inv.')
         for solvent_fraction in solvent_fractions:
             fom_orig, fom_inv = results[solvent_fraction]
@@ -402,8 +404,17 @@ class Fast_ep:
         self._log('Time: %.2f' % (t1 - t0))
 
         return
+
+    def write_results(self):
+        open(os.path.join(self._wd, 'fast_ep.dat'), 'w').write('\n'.join([
+            'SPACEGROUP: %s' % self._best_spacegroup,
+            'NSITE: %d' % self._best_nsite,
+            'SOLVENT: %.2f' % self._best_solvent, '']))
+
+        return
     
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     fast_ep.find_sites()
     fast_ep.phase()
+    fast_ep.write_results()
