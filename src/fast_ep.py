@@ -35,6 +35,7 @@ from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_ep_helpers import autosharp
 from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res
 from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
+from iotbx.scalepack import merge as merge_scalepack
 
 def useful_number_sites(cell, pointgroup):
     nha = number_sites_estimate(cell, pointgroup)
@@ -145,34 +146,42 @@ class Fast_ep:
         self._log('Using %d cpus / %d machines' % (self._cpu, self._machines))
 
         # pull information we'll need from the input MTZ file - the unit cell,
-        # the pointgroup and the number of reflections in the file
+        # the pointgroup and the number of reflections in the file. select
+        # first Miller array in file which has anomalous data
 
         m = mtz.object(self._hklin)
 
-        self._pointgroup = m.space_group().type().number()
-        for crystal in m.crystals():
-            if crystal.name() != 'HKL_base':
-                self._unit_cell = crystal.unit_cell().parameters()
+        mas = m.as_miller_arrays()
+
+        for ma in mas:
+            if not ma.anomalous_flag():
+                continue
+            self._data = ma
+            break
+        
+        self._pointgroup = self._data.space_group().type().number()
+        self._unit_cell = self._data.unit_cell().parameters()
 
         self._nrefl = m.n_reflections()
 
-        self._log('Input:     %s' % self._hklin)
-        self._log('Unit cell: %.2f %.2f %.2f %.2f %.2f %.2f' % \
+        self._log('Input:      %s' % self._hklin)
+        self._log('Unit cell:  %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
-        self._log('Nrefl:     %d' % self._nrefl)
+        self._log('Pointgroup: %s' % m.space_group().type().lookup_symbol())
+        self._log('Nrefl:      %d' % self._nrefl)
 
         # Now set up the job - run shelxc, assess anomalous signal, compute
         # possible spacegroup options, generate scalepack format reflection
         # file etc.
 
-        # FIXME check status of output here
-
-        run_job('mtz2sca', [self._hklin, 'sad.sca'])
+        merge_scalepack.write(file_name = 'sad.sca',
+                              miller_array = self._data)
 
         # in here run shelxc to generate the ins file (which will need to be
         # modified) and the hkl files, which will need to be copied.
 
-        self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
+        self._spacegroups = generate_chiral_spacegroups_unique(
+            self._pointgroup)
         self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
 
         spacegroup = self._spacegroups[0]
