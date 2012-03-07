@@ -80,7 +80,8 @@ def happy_shelxd_log(shelxd_lst_file):
     for record in open(shelxd_lst_file):
         if '** NO SUITABLE PATTERSON VECTORS FOUND **' in record:
             return False
-
+        if '** CANNOT ALLOCATE ENOUGH MEMORY **' in record:
+            return False
 
     best_cfom = 0.0
     
