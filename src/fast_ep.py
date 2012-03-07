@@ -165,14 +165,19 @@ class Fast_ep:
 
         self._nrefl = m.n_reflections()
 
-        self._log('Input:      %s' % self._hklin)
-        self._log('Unit cell:  %.2f %.2f %.2f %.2f %.2f %.2f' % \
+        self._log('Input:       %s' % self._hklin)
+        self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
-        self._log('Pointgroup: %s' % m.space_group().type().lookup_symbol())
-        self._log('Resolution: %.2f - %.2f' % self._data.resolution_range())
-        self._log('Nrefl:      %d / %d' % (self._nrefl,
-                                           self._data.n_bijvoet_pairs()))
-        self._log('DF/F:       %.3f' % self._data.anomalous_signal())
+        self._log('Pointgroup:  %s' % m.space_group().type().lookup_symbol())
+        self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
+        self._log('Nrefl:       %d / %d' % (self._nrefl,
+                                            self._data.n_bijvoet_pairs()))
+        self._log('DF/F:        %.3f' % self._data.anomalous_signal())
+
+        differences = self._data.anomalous_differences()
+
+        self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                                         sum(differences.sigmas())))
 
         # Now set up the job - run shelxc, assess anomalous signal, compute
         # possible spacegroup options, generate scalepack format reflection
@@ -186,6 +191,9 @@ class Fast_ep:
 
         self._spacegroups = generate_chiral_spacegroups_unique(
             self._pointgroup)
+
+        self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
+        
         self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
 
         spacegroup = self._spacegroups[0]
