@@ -81,4 +81,14 @@ def happy_shelxd_log(shelxd_lst_file):
         if '** NO SUITABLE PATTERSON VECTORS FOUND **' in record:
             return False
 
+
+    best_cfom = 0.0
+    
+    for record in open(shelxd_lst_file):
+        if record.startswith(' Try'):
+            best_cfom = float(record.replace(',', ' ').split()[-3])
+
+    if best_cfom == 0.0:
+        return False
+
     return True

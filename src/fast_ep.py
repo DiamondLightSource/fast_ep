@@ -48,6 +48,9 @@ def useful_number_sites(cell, pointgroup):
         if nha_test and not nha_test in result:
             result.append(nha_test)
 
+    if not result:
+        result = [1]
+
     return result
 
 def modify_ins_text(ins_text, spacegroup, nsites):
