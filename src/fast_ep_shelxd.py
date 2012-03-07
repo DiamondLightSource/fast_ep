@@ -84,9 +84,12 @@ def happy_shelxd_log(shelxd_lst_file):
 
     best_cfom = 0.0
     
+    # columns can get merged in output, so watch for that
+
     for record in open(shelxd_lst_file):
-        if record.startswith(' Try'):
-            best_cfom = float(record.replace(',', ' ').split()[-3])
+        if record.startswith(' Try'):                
+            best_cfom_token = record.replace(',', ' ').split()[-3]
+            best_cfom = float(best_cfom_token.replace('best', ''))
 
     if best_cfom == 0.0:
         return False
