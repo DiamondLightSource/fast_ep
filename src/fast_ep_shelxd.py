@@ -75,3 +75,10 @@ def analyse_res(res):
             nsites_real += 1
 
     return cc, cc_weak, cfom, nsites_real
+
+def happy_shelxd_log(shelxd_lst_file):
+    for record in open(shelxd_lst_file):
+        if '** NO SUITABLE PATTERSON VECTORS FOUND **' in record:
+            return False
+
+    return True

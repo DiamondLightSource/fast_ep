@@ -33,7 +33,8 @@ from number_sites_estimate import number_sites_estimate, \
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_ep_helpers import autosharp
-from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res
+from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res, \
+     happy_shelxd_log
 from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
 from iotbx.scalepack import merge as merge_scalepack
 
@@ -168,7 +169,10 @@ class Fast_ep:
         self._log('Unit cell:  %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
         self._log('Pointgroup: %s' % m.space_group().type().lookup_symbol())
-        self._log('Nrefl:      %d' % self._nrefl)
+        self._log('Resolution: %.2f - %.2f' % self._data.resolution_range())
+        self._log('Nrefl:      %d / %d' % (self._nrefl,
+                                           self._data.n_bijvoet_pairs()))
+        self._log('DF/F:       %.3f' % self._data.anomalous_signal())
 
         # Now set up the job - run shelxc, assess anomalous signal, compute
         # possible spacegroup options, generate scalepack format reflection
@@ -254,23 +258,34 @@ class Fast_ep:
         # now gather up all of the results, find the one with best cfom
 
         best_cfom = 0.0
+        best_spacegroup = None
+        best_nsite = 0
+        best_nsite_real = 0
 
         results = { }
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
                 wd = os.path.join(self._wd, spacegroup, str(nsite))
-                res = open(os.path.join(wd, 'sad_fa.res')).readlines()
 
-                cc, cc_weak, cfom, nsite_real = analyse_res(res)
+                if happy_shelxd_log(os.path.join(wd, 'sad_fa.lst')):
+                    res = open(os.path.join(wd, 'sad_fa.res')).readlines()
+                    cc, cc_weak, cfom, nsite_real = analyse_res(res)
 
-                results[(spacegroup, nsite)] = (cc, cc_weak, cfom, nsite_real)
+                    results[(spacegroup, nsite)] = (cc, cc_weak, cfom,
+                                                    nsite_real)
 
-                if cfom > best_cfom:
-                    best_cfom = cfom
-                    best_spacegroup = spacegroup
-                    best_nsite = nsite
-                    best_nsite_real = nsite_real
+                    if cfom > best_cfom:
+                        best_cfom = cfom
+                        best_spacegroup = spacegroup
+                        best_nsite = nsite
+                        best_nsite_real = nsite_real
+
+                else:
+                    results[(spacegroup, nsite)] = (0.0, 0.0, 0.0, 0)
+
+        if not best_spacegroup:
+            raise RuntimeError, 'All shelxd jobs failed'
 
         for spacegroup in self._spacegroups:
             if spacegroup == best_spacegroup:
@@ -424,6 +439,10 @@ class Fast_ep:
     
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
-    fast_ep.find_sites()
+    try:
+        fast_ep.find_sites()
+    except RuntimeError, e:
+        fast_ep._log('*** %s ***' % str(e))
+        sys.exit(1)
     fast_ep.phase()
     fast_ep.write_results()
