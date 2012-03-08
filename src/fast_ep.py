@@ -303,7 +303,8 @@ class Fast_ep:
                 self._log('Spacegroup: %s (best)' % spacegroup)
             else:
                 self._log('Spacegroup: %s' % spacegroup)
-                
+
+            self._log('No.  CCall  CCweak CFOM  No. found')
             for nsite in self._nsites:
                 (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite)]
                 if (spacegroup, nsite) == (best_spacegroup, best_nsite):
