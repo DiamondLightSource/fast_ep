@@ -14,6 +14,9 @@
 # then mid slope > 1.3 or mid slope > 1.15 and resolution better than 1.5
 
 import sys
+from iotbx import mtz
+from cctbx.miller import build_set
+from cctbx.crystal import symmetry as crystal_symmetry
 
 def parse_fast_dp_log(fast_dp_log):
 
@@ -48,5 +51,58 @@ def go_fast_ep(fast_dp_log):
         return 'Go'
     return 'No'
 
+def go_fast_ep_from_data(mtz_file):
+    '''Decide whether to run fast_ep or no based on the actual data based on
+    the following criteria:
+
+    completeness > 80% to dmin or 2.0 whichever the lower
+    dI / s(dI) > 1.0 if resolution lower than 2.0, > 0.8 if better than
+    1.5, smoothly varying in between.'''
+
+    m = mtz.object(mtz_file)
+
+    mas = m.as_miller_arrays()
+    data = None
+
+    for ma in mas:
+        if not ma.anomalous_flag():
+            continue
+        data = ma
+        break
+
+    if not data:
+        return False
+
+    d_min, d_max = sorted(data.resolution_range())
+
+    if d_min > 2.0:
+        differences = data.anomalous_differences()
+        signal_to_noise = sum(abs(differences.data())) / \
+            sum(differences.sigmas())
+        completeness = data.completeness()
+
+        if completeness < 0.8:
+            return False
+        if signal_to_noise < 1.0:
+            return False
+        return True
+    
+    else:
+        data2 = data.resolution_filter(d_min = 2.0)
+        differences = data2.anomalous_differences()
+        signal_to_noise = sum(abs(differences.data())) / \
+            sum(differences.sigmas())
+        completeness = data2.completeness()
+
+        if completeness < 0.8:
+            return False
+        if signal_to_noise < 0.8:
+            return False
+
+        return True
+    
 if __name__ == '__main__':
-    print go_fast_ep(sys.argv[1])
+    if go_fast_ep_from_data(sys.argv[1]):
+        print 'Go'
+    else:
+        print 'No'
