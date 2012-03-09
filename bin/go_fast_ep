@@ -3,6 +3,6 @@
 full_path="$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"
 export FAST_EP_ROOT=`dirname "$full_path" | sed 's/\/bin$//'`
 
-python ${FAST_EP_ROOT}/src/go_fast_ep.py $@
+cctbx.python ${FAST_EP_ROOT}/src/go_fast_ep.py $@
 
 
