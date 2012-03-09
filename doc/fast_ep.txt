@@ -13,3 +13,9 @@ For each permutation a shelxd_mp task is run, with the run resulting in the high
 
 The results are then passed into a number of shelxe tasks, where the phasing is performed with a number of different solvent fractions in the range 25% to 75% in 5% steps and in both hands. If the hand of the spacegroup is changed with the enantiomorphic spacegroup the correct result will be shown. In this phasing step the results are scored by the pseudo-free CC. The result with the highest CC will be converted to mtz format.
 
+Usage
+
+fast_ep machines=N cpu=M input=data.mtz
+
+N: maximum number of machines to use
+M: number of cpu's per machine
