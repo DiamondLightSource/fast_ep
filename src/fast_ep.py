@@ -106,6 +106,8 @@ fast_ep {
     .type = int
   input = 'fast_dp.mtz'
     .type = str
+  ntry = 200
+    .type = int
 }
 """)
         argument_interpreter = self._phil.command_line_argument_interpreter(
@@ -126,6 +128,9 @@ fast_ep {
     def get_input(self):
         return self._parameters.fast_ep.input
 
+    def get_ntry(self):
+        return self._parameters.fast_ep.ntry
+
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -138,6 +143,7 @@ class Fast_ep:
         self._hklin = parameters.get_input()
         self._cpu = parameters.get_cpu()
         self._machines = parameters.get_machines()
+        self._ntry = parameters.get_ntry()
 
         if self._machines == 1:
             self._cluster = False
@@ -171,6 +177,7 @@ class Fast_ep:
         self._log('Input:       %s' % self._hklin)
         self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
+        self._log('N try:       %d' % self._ntry)
         self._log('Pointgroup:  %s' % m.space_group().type().lookup_symbol())
         self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
         self._log('Nrefl:       %d / %d' % (self._nrefl,
@@ -201,6 +208,7 @@ class Fast_ep:
 
         spacegroup = self._spacegroups[0]
         nsite = self._nsites[0]
+        ntry = self._ntry
 
         shelxc_output = run_job(
             'shelxc', ['sad'],
@@ -209,7 +217,7 @@ class Fast_ep:
              'spag %s' % sanitize_spacegroup(spacegroup),
              'find %d' % nsite,
              'mind -3.5',
-             'ntry 200'])
+             'ntry %d' % ntry])
 
         # FIXME in here perform some analysis of the shelxc output - how much
         # anomalous signal was reported?
@@ -319,6 +327,9 @@ class Fast_ep:
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
+
+        if results[(best_spacegroup, best_nsite)][0] < 25.0:
+            self._log('Substructure solution poor')
 
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
