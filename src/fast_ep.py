@@ -333,6 +333,9 @@ class Fast_ep:
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
 
+        self._log('Best CC / weak:  %.2f / %.2f' % \
+                  tuple(results[(best_spacegroup, best_nsite)][:2]))
+
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
         
