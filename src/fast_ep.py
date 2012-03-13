@@ -17,6 +17,8 @@ from multiprocessing import Pool
 from iotbx import mtz
 from libtbx.phil import parse
 from cctbx.sgtbx import space_group, space_group_symbols
+from iotbx.scalepack import merge as merge_scalepack
+from libtbx import introspection
 
 if not 'FAST_EP_ROOT' in os.environ:
     raise RuntimeError, 'FAST_EP_ROOT not set'
@@ -32,11 +34,9 @@ from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
-from fast_ep_helpers import autosharp
 from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res, \
      happy_shelxd_log
 from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
-from iotbx.scalepack import merge as merge_scalepack
 
 def useful_number_sites(cell, pointgroup):
     nha = number_sites_estimate(cell, pointgroup)
@@ -102,14 +102,16 @@ class Fast_ep_parameters:
 fast_ep {
   machines = 1
     .type = int
-  cpu = 8
+  cpu = %d
     .type = int
-  input = 'fast_dp.mtz'
+  sad = 'fast_dp.mtz'
+    .type = str
+  native = None
     .type = str
   ntry = 200
     .type = int
 }
-""")
+""" % introspection.number_of_processors(return_value_if_unknown = 1))
         argument_interpreter = self._phil.command_line_argument_interpreter(
             home_scope = 'fast_ep')
         for argv in sys.argv[1:]:
@@ -125,8 +127,11 @@ fast_ep {
     def get_cpu(self):
         return self._parameters.fast_ep.cpu
 
-    def get_input(self):
-        return self._parameters.fast_ep.input
+    def get_sad(self):
+        return self._parameters.fast_ep.sad
+
+    def get_native(self):
+        return self._parameters.fast_ep.native
 
     def get_ntry(self):
         return self._parameters.fast_ep.ntry
@@ -140,7 +145,7 @@ class Fast_ep:
         '''Instantiate class and perform initial processing needed before the
         real work is done.'''
         
-        self._hklin = parameters.get_input()
+        self._hklin = parameters.get_sad()
         self._cpu = parameters.get_cpu()
         self._machines = parameters.get_machines()
         self._ntry = parameters.get_ntry()
@@ -327,9 +332,6 @@ class Fast_ep:
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
-
-        if results[(best_spacegroup, best_nsite)][0] < 25.0:
-            self._log('Substructure solution poor')
 
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
