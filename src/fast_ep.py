@@ -149,6 +149,7 @@ class Fast_ep:
         self._cpu = parameters.get_cpu()
         self._machines = parameters.get_machines()
         self._ntry = parameters.get_ntry()
+        self._data = None
 
         if self._machines == 1:
             self._cluster = False
@@ -171,8 +172,13 @@ class Fast_ep:
         for ma in mas:
             if not ma.anomalous_flag():
                 continue
+            if str(ma.observation_type()) != 'xray.intensity':
+                continue
             self._data = ma
             break
+
+        if not self._data:
+            raise RuntimeError, 'no intensity data found in %s' % self._hklin
         
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()
@@ -180,6 +186,7 @@ class Fast_ep:
         self._nrefl = m.n_reflections()
 
         self._log('Input:       %s' % self._hklin)
+        self._log('Columns:     %s' % self._data.info().label_string())
         self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
         self._log('N try:       %d' % self._ntry)
