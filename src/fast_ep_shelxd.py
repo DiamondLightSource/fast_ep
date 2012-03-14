@@ -38,7 +38,7 @@ def run_shelxd_cluster(settings):
 
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
-
+            
     return
 
 def run_shelxd_local(settings):

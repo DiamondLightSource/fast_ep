@@ -89,6 +89,9 @@ def run_job_cluster(executable, arguments = [], stdin = [],
             'qsub', ['-V', '-cwd', '-q', 'medium.q',
                      'FEP_%s.sh' % rs], [], working_directory)
 
+    if 'Unable to run job' in qsub_output[0]:
+        raise RuntimeError, 'error submitting job to queue'
+
     job_id = int(qsub_output[0].split()[2])
 
     return job_id
