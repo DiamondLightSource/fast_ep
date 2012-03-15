@@ -20,7 +20,7 @@ if not fast_ep_lib in sys.path:
 
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 
-def run_shelxe_cluster(settings):
+def run_shelxe_cluster(_settings):
     '''Run shelxe on cluster with settings given in dictionary, containing:
 
     nsite - number of sites
@@ -28,10 +28,10 @@ def run_shelxe_cluster(settings):
     hand - original or inverted
     wd - working directory'''
 
-    nsite = settings['nsite']
-    solv = settings['solv']
-    hand = settings['hand']
-    wd = settings['wd']
+    nsite = _settings['nsite']
+    solv = _settings['solv']
+    hand = _settings['hand']
+    wd = _settings['wd']
 
     if hand == 'original':
         job_id = run_job_cluster(
@@ -47,7 +47,7 @@ def run_shelxe_cluster(settings):
 
     return
 
-def run_shelxe_local(settings):
+def run_shelxe_local(_settings):
     '''Run shelxe locally with settings given in dictionary, containing:
 
     nsite - number of sites
@@ -55,10 +55,10 @@ def run_shelxe_local(settings):
     hand - original or inverted
     wd - working directory'''
 
-    nsite = settings['nsite']
-    solv = settings['solv']
-    hand = settings['hand']
-    wd = settings['wd']
+    nsite = _settings['nsite']
+    solv = _settings['solv']
+    hand = _settings['hand']
+    wd = _settings['wd']
 
     if hand == 'original':
         job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite,

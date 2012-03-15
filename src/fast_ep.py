@@ -38,8 +38,8 @@ from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res, \
      happy_shelxd_log
 from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
 
-def useful_number_sites(cell, pointgroup):
-    nha = number_sites_estimate(cell, pointgroup)
+def useful_number_sites(_cell, _pointgroup):
+    nha = number_sites_estimate(_cell, _pointgroup)
 
     result = []
 
@@ -53,16 +53,16 @@ def useful_number_sites(cell, pointgroup):
 
     return result
 
-def modify_ins_text(ins_text, spacegroup, nsites):
+def modify_ins_text(_ins_text, _spacegroup, _nsites):
     '''Update the text in a SHELXD .ins file to handle the correct number
     of sites and spacegroup symmetry operations.'''
 
     new_text = []
 
     symm = [op.as_xyz().upper() for op in
-            space_group(space_group_symbols(spacegroup).hall()).smx()]
+            space_group(space_group_symbols(_spacegroup).hall()).smx()]
 
-    for record in ins_text:
+    for record in _ins_text:
         if 'SYMM' in record:
             if not symm:
                 continue
@@ -72,7 +72,7 @@ def modify_ins_text(ins_text, spacegroup, nsites):
                 new_text.append(('SYMM %s' % op))
             symm = None
         elif 'FIND' in record:
-            new_text.append(('FIND %d' % nsites))
+            new_text.append(('FIND %d' % _nsites))
         else:
             new_text.append(record.strip())
 
@@ -88,9 +88,9 @@ class logger:
         self._cout = None
         return
 
-    def __call__(self, line):
-        print line
-        self._fout.write('%s\n' % line)
+    def __call__(self, _line):
+        sys.stdout.write('%s\n' % _line)
+        self._fout.write('%s\n' % _line)
         return
 
 class Fast_ep_parameters:
@@ -141,14 +141,14 @@ class Fast_ep:
     experimental phasing is likely to be successful and (ii) what the
     correct parameteters and number of heavy atom sites.'''
 
-    def __init__(self, parameters):
+    def __init__(self, _parameters):
         '''Instantiate class and perform initial processing needed before the
         real work is done.'''
         
-        self._hklin = parameters.get_sad()
-        self._cpu = parameters.get_cpu()
-        self._machines = parameters.get_machines()
-        self._ntry = parameters.get_ntry()
+        self._hklin = _parameters.get_sad()
+        self._cpu = _parameters.get_cpu()
+        self._machines = _parameters.get_machines()
+        self._ntry = _parameters.get_ntry()
         self._data = None
 
         if self._machines == 1:
@@ -256,7 +256,14 @@ class Fast_ep:
 
         jobs = [ ]
 
+        # the shelx programs are fortran so we need to tell them how much space
+        # to allocate on the command-line - this is done by passing -LN on the
+        # command line where N is calculated as follows:
+
         nrefl = 1 + 2 * int(math.floor(self._cpu * self._nrefl / 100000.0))
+
+        # modify the instruction file (.ins) for the number of sites and
+        # symmetry operations for each run
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:

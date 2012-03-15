@@ -51,7 +51,7 @@ def go_fast_ep(fast_dp_log):
         return 'Go'
     return 'No'
 
-def go_fast_ep_from_data(mtz_file):
+def go_fast_ep_from_data(_mtz_file):
     '''Decide whether to run fast_ep or no based on the actual data based on
     the following criteria:
 
@@ -59,7 +59,7 @@ def go_fast_ep_from_data(mtz_file):
     dI / s(dI) > 1.0 if resolution lower than 2.0, > 0.8 if better than
     1.5, smoothly varying in between.'''
 
-    m = mtz.object(mtz_file)
+    m = mtz.object(_mtz_file)
 
     mas = m.as_miller_arrays()
     data = None
