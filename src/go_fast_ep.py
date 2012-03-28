@@ -102,7 +102,15 @@ def go_fast_ep_from_data(_mtz_file):
         return True
     
 if __name__ == '__main__':
-    if go_fast_ep_from_data(sys.argv[1]):
+
+    status = False
+    
+    try:
+        status = go_fast_ep_from_data(sys.argv[1])
+    except:
+        status = False
+
+    if status:
         print 'Go'
     else:
         print 'No'
