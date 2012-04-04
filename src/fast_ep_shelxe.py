@@ -36,11 +36,11 @@ def run_shelxe_cluster(_settings):
     if hand == 'original':
         job_id = run_job_cluster(
             'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                       '-s%f' % solv, '-m20'], [], wd, 1)
+                       '-s%f' % solv, '-m20'], [], wd, 1, timeout = 600)
     else:
         job_id = run_job_cluster(
             'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                       '-s%f' % solv, '-m20', '-i'], [], wd, 1)
+                       '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
         
     while not is_cluster_job_finished(job_id):
         time.sleep(1)

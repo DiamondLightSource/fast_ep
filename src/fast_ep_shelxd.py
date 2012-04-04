@@ -34,7 +34,7 @@ def run_shelxd_cluster(_settings):
 
     job_id = run_job_cluster(
         'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
-        [], wd, ncpu)
+        [], wd, ncpu, timeout = 600)
 
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
