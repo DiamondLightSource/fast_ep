@@ -5,9 +5,3 @@ export FAST_EP_ROOT=`dirname "$full_path" | sed 's/\/bin$//'`
 
 cctbx.python ${FAST_EP_ROOT}/src/go_fast_ep.py $@
 
-cat > coot.sh << eof
-. /dls_sw/apps/Modules/3.2.3/etc/profile.modules
-module load coot
-coot --python -c 'make_and_draw_map("sad.mtz", "F", "PHI", "/HKL_base/HKL_base/FOM", 1, 0)' --no-guano
-eof
-
