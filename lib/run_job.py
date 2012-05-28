@@ -85,14 +85,19 @@ def run_job_cluster(executable, arguments = [], stdin = [],
     else:
         timeout_tokens = []
 
+    if os.environ.get('USER', '') == 'gda':
+        queue = 'high.q'
+    else:
+        queue = 'medium.q'
+
     if ncpu > 1:
         qsub_output = run_job(
             'qsub', timeout_tokens + ['-V', '-pe', 'smp', str(ncpu), 
-                                      '-cwd', '-q', 'medium.q',
+                                      '-cwd', '-q', queue,
                                       'FEP_%s.sh' % rs], [], working_directory)
     else:
         qsub_output = run_job(
-            'qsub', timeout_tokens + ['-V', '-cwd', '-q', 'medium.q',
+            'qsub', timeout_tokens + ['-V', '-cwd', '-q', queue,
                                       'FEP_%s.sh' % rs], [], working_directory)
 
     if 'Unable to run job' in qsub_output[0]:
