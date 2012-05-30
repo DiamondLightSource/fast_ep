@@ -15,6 +15,7 @@ import math
 from multiprocessing import Pool
 
 from iotbx import mtz
+from cctbx import xray
 from libtbx.phil import parse
 from cctbx.sgtbx import space_group, space_group_symbols
 from iotbx.scalepack import merge as merge_scalepack
@@ -472,6 +473,15 @@ class Fast_ep:
                                 os.path.join(self._wd, 'sad.%s' % ending))
             self._best_spacegroup = spacegroup_enantiomorph(
                 self._best_spacegroup)
+
+        # convert sites to pdb, inverting if needed
+
+        xs = xray.structure.from_shelx(os.path.join(self._wd, 'sad.hat'))
+        if self._best_enantiomorph == 'inverted':
+            open('sad.pdb', 'w').write(xs.change_hand().as_pdb_file())
+        else:
+            open('sad.pdb', 'w').write(xs.as_pdb_file())
+            
 
         self._log('Best spacegroup: %s' % self._best_spacegroup)
                 
