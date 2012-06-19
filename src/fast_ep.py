@@ -12,10 +12,11 @@ import sys
 import time
 import shutil
 import math
+import traceback
 from multiprocessing import Pool
 
 from iotbx import mtz
-from cctbx import xray
+from iotbx import pdb
 from libtbx.phil import parse
 from cctbx.sgtbx import space_group, space_group_symbols
 from iotbx.scalepack import merge as merge_scalepack
@@ -476,12 +477,12 @@ class Fast_ep:
 
         # convert sites to pdb, inverting if needed
 
-        xs = xray.structure.from_shelx(os.path.join(self._wd, 'sad.hat'))
-        if self._best_enantiomorph == 'inverted':
+        xs = pdb.input(os.path.join(
+            self._wd, 'sad_fa.pdb')).xray_structure_simple()
+        if best_hand == 'inverted':
             open('sad.pdb', 'w').write(xs.change_hand().as_pdb_file())
         else:
             open('sad.pdb', 'w').write(xs.as_pdb_file())
-            
 
         self._log('Best spacegroup: %s' % self._best_spacegroup)
                 
@@ -514,17 +515,20 @@ if __name__ == '__main__':
     try:
         fast_ep.find_sites()
     except RuntimeError, e:
-        fast_ep._log('*** %s ***' % str(e))
+        fast_ep._log('*** FIND: %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.phase()
     except RuntimeError, e:
-        fast_ep._log('*** %s ***' % str(e))
+        fast_ep._log('*** PHASE %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.write_results()
     except RuntimeError, e:
-        fast_ep._log('*** %s ***' % str(e))
+        fast_ep._log('*** FINISH %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
