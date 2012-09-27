@@ -212,6 +212,8 @@ class Fast_ep:
         # possible spacegroup options, generate scalepack format reflection
         # file etc.
 
+        self._data = self._data.apply_scaling(target_max = 1.0e5)
+
         merge_scalepack.write(file_name = 'sad.sca',
                               miller_array = self._data)
 
