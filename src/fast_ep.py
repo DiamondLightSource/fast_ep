@@ -150,6 +150,7 @@ class Fast_ep:
         data for input into shelxc, which is used to compute FA values.'''
         
         self._hklin = _parameters.get_sad()
+        self._native_hklin = _parameters.get_native()
         self._cpu = _parameters.get_cpu()
         self._machines = _parameters.get_machines()
         self._ntry = _parameters.get_ntry()
@@ -169,8 +170,9 @@ class Fast_ep:
         # the pointgroup and the number of reflections in the file. select
         # first Miller array in file which has anomalous data
 
-        m = mtz.object(self._hklin)
+        # --- SAD DATA ---
 
+        m = mtz.object(self._hklin)
         mas = m.as_miller_arrays()
 
         for ma in mas:
@@ -180,6 +182,27 @@ class Fast_ep:
                 continue
             self._data = ma
             break
+
+        if not self._data:
+            raise RuntimeError, 'no anomalous intensity data found in %s' % \
+                self._hklin
+        
+        # --- NATIVE DATA ---
+
+        if self._native_hklin:
+            mn = mtz.object(self._native_hklin)
+            masn = m.as_miller_arrays()
+
+            for ma in masn:
+                if ma.anomalous_flag():
+                    continue
+                if str(ma.observation_type()) != 'xray.intensity':
+                    continue
+                self._native = ma
+                break
+
+        else:
+            self._native = None
 
         if not self._data:
             raise RuntimeError, 'no intensity data found in %s' % self._hklin
@@ -194,6 +217,9 @@ class Fast_ep:
 
         self._log('Input:       %s' % self._hklin)
         self._log('Columns:     %s' % self._data.info().label_string())
+        if self._native_hklin:
+            self._log('Native:      %s' % self._native_hklin)
+            self._log('Columns:     %s' % self._native.info().label_string())
         self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
         self._log('N try:       %d' % self._ntry)
@@ -216,6 +242,10 @@ class Fast_ep:
 
         merge_scalepack.write(file_name = 'sad.sca',
                               miller_array = self._data)
+        
+        if self._native_hklin:
+            merge_scalepack.write(file_name = 'native.sca',
+                                  miller_array = self._native)
 
         # in here run shelxc to generate the ins file (which will need to be
         # modified) and the hkl files, which will need to be copied.
@@ -231,19 +261,53 @@ class Fast_ep:
         nsite = self._nsites[0]
         ntry = self._ntry
 
-        shelxc_output = run_job(
-            'shelxc', ['sad'],
-            ['sad sad.sca',
-             'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
-             'spag %s' % sanitize_spacegroup(spacegroup),
-             'find %d' % nsite,
-             'mind -3.5',
-             'ntry %d' % ntry])
+        if self._native_hklin:
+            shelxc_output = run_job(
+                'shelxc', ['sad'],
+                ['sad sad.sca',
+                 'nat native.sca',
+                'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
+                'spag %s' % sanitize_spacegroup(spacegroup),
+                'find %d' % nsite,
+                'mind -3.5',
+                'ntry %d' % ntry])
 
+        else:
+            shelxc_output = run_job(
+                'shelxc', ['sad'],
+                ['sad sad.sca',
+                 'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
+                 'spag %s' % sanitize_spacegroup(spacegroup),
+                 'find %d' % nsite,
+                 'mind -3.5',
+                'ntry %d' % ntry])
+        
         # FIXME in here perform some analysis of the shelxc output - how much
         # anomalous signal was reported?
  
         open('shelxc.log', 'w').write(''.join(shelxc_output))
+
+        table = { }
+
+        for record in shelxc_output:
+            if record.strip().startswith('Resl.'):
+                resolutions = map(float, record.replace(' - ', ' ').split()[2:])
+                table['dmin'] = resolutions
+            if record.strip().startswith('<I/sig>'):
+                table['isig'] = map(float, record.split()[1:])
+            if record.strip().startswith('%Complete'):
+                table['comp'] = map(float, record.split()[1:])
+            if record.strip().startswith('<d"/sig>'):
+                table['dsig'] = map(float, record.split()[1:])
+
+        shells = len(table['dmin'])
+
+        self._log('SHELXC summary:')
+        self._log('Dmin  <I/sig>  %comp  <d"/sig>')
+        for j in range(shells):
+            self._log('%5.2f  %6.2f  %5.2f  %5.2f' %
+                      (table['dmin'][j], table['isig'][j],
+                       table['comp'][j], table['dsig'][j]))
 
         # store the ins file text - will need to modify this when we come to
         # run shelxd...
