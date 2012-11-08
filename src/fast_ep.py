@@ -305,7 +305,7 @@ class Fast_ep:
         self._log('SHELXC summary:')
         self._log('Dmin  <I/sig>  %comp  <d"/sig>')
         for j in range(shells):
-            self._log('%5.2f  %6.2f  %5.2f  %5.2f' %
+            self._log('%5.2f  %6.2f  %6.2f  %5.2f' %
                       (table['dmin'][j], table['isig'][j],
                        table['comp'][j], table['dsig'][j]))
 
