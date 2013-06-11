@@ -33,7 +33,7 @@ def run_shelxd_cluster(_settings):
     wd = _settings['wd']
 
     job_id = run_job_cluster(
-        'shelxd', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
+        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
         [], wd, ncpu, timeout = 600)
 
     while not is_cluster_job_finished(job_id):
@@ -53,7 +53,7 @@ def run_shelxd_local(_settings):
     wd = _settings['wd']
 
     job_output = run_job(
-        'shelxd', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
+        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
 
     open(os.path.join(wd, 'shelxd.log'), 'w').write(''.join(job_output))
 
