@@ -1,0 +1,107 @@
+<PhasingContainer>
+<PhasingAnalysis>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</PhasingAnalysis>
+<PhasingProgramRun>
+<phasingCommandLine>
+phasingprogram -p1 -p2 -p4 -p9 output.log
+</phasingCommandLine>
+<phasingPrograms>
+phasingprogram
+</phasingPrograms>
+<phasingStatus>
+1
+</phasingStatus>
+<phasingMessage/>
+<phasingStartTime/>
+<phasingEndTime/>
+<phasingEnvironment/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</PhasingProgramRun>
+<PhasingProgramAttachment>
+<fileType>
+log
+</fileType>
+<fileName>
+output.log
+</fileName>
+<filePath>
+/tmp
+</filePath>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</PhasingProgramAttachment>
+<Phasing>
+<spaceGroupId/>
+<method>
+solvent flattening
+</method>
+<solventContent/>
+<enantiomorph/>
+<lowRes/>
+<highRes/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</Phasing>
+<PreparePhasingData>
+<spaceGroupId>
+1
+</spaceGroupId>
+<lowRes/>
+<highRes/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</PreparePhasingData>
+<ModelBuilding>
+<spaceGroupId>
+1
+</spaceGroupId>
+<lowRes/>
+<highRes/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</ModelBuilding>
+<SubstructureDetermination>
+<spaceGroupId>
+1
+</spaceGroupId>
+<method>
+SIR
+</method>
+<lowRes/>
+<highRes/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</SubstructureDetermination>
+<Phasing_has_ScalingContainer>
+<Phasing_has_Scaling>
+<datasetNumber/>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</Phasing_has_Scaling>
+<PhasingStatistics>
+<numberOfBins/>
+<binNumber/>
+<lowRes/>
+<highRes/>
+<metric/>
+<statisticsValue/>
+<nReflections>
+526
+</nReflections>
+<recordTimeStamp>
+2013-06-12 22:00:54
+</recordTimeStamp>
+</PhasingStatistics>
+</Phasing_has_ScalingContainer>
+</PhasingContainer>
