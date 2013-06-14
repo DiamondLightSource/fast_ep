@@ -30,6 +30,8 @@ fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
+from xml_output import write_ispyb_xml
+
 from generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
      spacegroup_enantiomorph, spacegroup_full, sanitize_spacegroup
 from number_sites_estimate import number_sites_estimate, \
@@ -112,6 +114,8 @@ fast_ep {
     .type = str
   ntry = 200
     .type = int
+  xml = 'fast_ep.xml'
+    .type = str
 }
 """ % introspection.number_of_processors(return_value_if_unknown = 1))
         argument_interpreter = self._phil.command_line_argument_interpreter(
@@ -137,6 +141,9 @@ fast_ep {
 
     def get_ntry(self):
         return self._parameters.fast_ep.ntry
+
+    def get_xml(self):
+        return self._parameters.fast_ep.xml
 
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
@@ -165,6 +172,8 @@ class Fast_ep:
         self._log = logger()
 
         self._log('Using %d cpus / %d machines' % (self._cpu, self._machines))
+
+        self._full_command_line = ' '.join(sys.argv)
 
         # pull information we'll need from the input MTZ file - the unit cell,
         # the pointgroup and the number of reflections in the file. select
@@ -225,6 +234,12 @@ class Fast_ep:
         self._log('N try:       %d' % self._ntry)
         self._log('Pointgroup:  %s' % m.space_group().type().lookup_symbol())
         self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
+        
+        self._xml_name = _parameters.get_xml()
+        self._xml_results= {}
+        self._xml_results['LOWRES'] = self._data.resolution_range()[0]
+        self._xml_results['HIGHRES'] = self._data.resolution_range()[1]
+        
         self._log('Nrefl:       %d / %d' % (self._nrefl,
                                             self._data.n_bijvoet_pairs()))
         self._log('DF/F:        %.3f' % self._data.anomalous_signal())
@@ -260,6 +275,8 @@ class Fast_ep:
         spacegroup = self._spacegroups[0]
         nsite = self._nsites[0]
         ntry = self._ntry
+
+        self._xml_results['SHELXC_SPACEGROUP_ID'] = space_group_symbols(spacegroup).number()
 
         if self._native_hklin:
             shelxc_output = run_job(
@@ -405,6 +422,7 @@ class Fast_ep:
         for spacegroup in self._spacegroups:
             if spacegroup == best_spacegroup:
                 self._log('Spacegroup: %s (best)' % spacegroup)
+                self._xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
             else:
                 self._log('Spacegroup: %s' % spacegroup)
 
@@ -526,6 +544,18 @@ class Fast_ep:
 
         wd = os.path.join(self._wd, '%.2f' % best_solvent)
 
+        if best_hand == 'original':
+            filename_to_read = 'sad.lst'
+        elif best_hand == 'inverted':
+            filename_to_read = 'sad_i.lst'
+        else:
+            raise RuntimeError, 'unknown hand'
+        file_to_read = os.path.join(wd, filename_to_read)
+        self.get_fom_mapCC(file_to_read)
+        self._xml_results['FOM'] = best_fom
+        self._xml_results['SOLVENTCONTENT'] = best_solvent
+        self._xml_results['ENANTIOMORPH'] = (best_hand=='inverted')
+
         # copy the result files from the most successful shelxe run into the
         # working directory, before converting to mtz format for inspection with
         # e.g. coot.
@@ -575,7 +605,35 @@ class Fast_ep:
             'SOLVENT: %.2f' % self._best_solvent, '']))
 
         return
-    
+
+    def get_fom_mapCC(self, file_to_read):
+        for record in open(file_to_read):
+            check_string = 'd    inf'
+            if check_string in record: #special due to initial case and separated resolutions
+                resolution_ranges = record.split(check_string)[1].split(' - ')
+                for resolution_number in xrange(0, len(resolution_ranges) - 1):
+                    resolution_number_name = str(resolution_number).zfill(2)
+                    if resolution_number == 0:
+                        self._xml_results['RESOLUTION_LOW'+resolution_number_name] = self._data.resolution_range()[0]
+                    else:
+                        self._xml_results['RESOLUTION_LOW'+resolution_number_name] = float(resolution_ranges[resolution_number])
+                    self._xml_results['RESOLUTION_HIGH'+resolution_number_name] = float(resolution_ranges[resolution_number + 1])
+            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'], ['N   ', 'NREFLECTIONS']]
+            for check_string, field_name in parse_pairs:
+                self._find_line_parse_string(check_string, record, field_name)
+
+    #look for a line starting with check_string, then split the rest of the string into values and store them
+    def _find_line_parse_string(self, check_string, record, field_name):
+        if check_string in record:
+            field_values = record.split(check_string)[1].split() #remove the check_string, then split the remainder
+            for field_number in xrange(0, len(field_values)):
+                field_number_name = str(field_number).zfill(2)
+                self._xml_results[field_name+field_number_name] = field_values[field_number]
+
+    def write_xml(self):
+        filename = os.path.join(self._wd, self._xml_name)
+        write_ispyb_xml(filename, self._full_command_line, self._wd, self._xml_results)
+
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     try:
@@ -594,6 +652,13 @@ if __name__ == '__main__':
 
     try:
         fast_ep.write_results()
+    except RuntimeError, e:
+        fast_ep._log('*** WRITE_RESULTS %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
+        sys.exit(1)
+
+    try:
+        fast_ep.write_xml()
     except RuntimeError, e:
         fast_ep._log('*** FINISH %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
