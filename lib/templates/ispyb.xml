@@ -1,15 +1,12 @@
 <PhasingContainer>
 <PhasingAnalysis>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
 </PhasingAnalysis>
 <PhasingProgramRun>
 <phasingCommandLine>
-phasingprogram -p1 -p2 -p4 -p9 output.log
+{commandline:s}
 </phasingCommandLine>
 <phasingPrograms>
-phasingprogram
+fast_ep
 </phasingPrograms>
 <phasingStatus>
 1
@@ -18,76 +15,48 @@ phasingprogram
 <phasingStartTime/>
 <phasingEndTime/>
 <phasingEnvironment/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
 </PhasingProgramRun>
 <PhasingProgramAttachment>
 <fileType>
 log
 </fileType>
 <fileName>
-output.log
+fast_ep.log
 </fileName>
 <filePath>
-/tmp
+{results_directory:s}
 </filePath>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
 </PhasingProgramAttachment>
 <Phasing>
-<spaceGroupId/>
+<spaceGroupId>{spacegroup_id:d}</spaceGroupId>
 <method>
-solvent flattening
+shelxe
 </method>
-<solventContent/>
-<enantiomorph/>
-<lowRes/>
-<highRes/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
+<solventContent>{solvent_content:f}</solventContent>
+<enantiomorph>{enantiomorph:d}</enantiomorph>
+<lowRes>{lowres:f}</lowRes>
+<highRes>{highres:f}</highRes>
 </Phasing>
 <PreparePhasingData>
 <spaceGroupId>
-1
+{shelxc_spacegroup:d}
 </spaceGroupId>
-<lowRes/>
-<highRes/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
+<lowRes>{lowres:f}</lowRes>
+<highRes>{highres:f}</highRes>
 </PreparePhasingData>
-<ModelBuilding>
-<spaceGroupId>
-1
-</spaceGroupId>
-<lowRes/>
-<highRes/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
-</ModelBuilding>
 <SubstructureDetermination>
 <spaceGroupId>
-1
+{spacegroup_id:d}
 </spaceGroupId>
 <method>
-SIR
+shelxd
 </method>
-<lowRes/>
-<highRes/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
+<lowRes>{lowres:f}</lowRes>
+<highRes>{highres:f}</highRes>
 </SubstructureDetermination>
 <Phasing_has_ScalingContainer>
 <Phasing_has_Scaling>
 <datasetNumber/>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
 </Phasing_has_Scaling>
 <PhasingStatistics>
 <numberOfBins/>
@@ -99,9 +68,6 @@ SIR
 <nReflections>
 526
 </nReflections>
-<recordTimeStamp>
-2013-06-12 22:00:54
-</recordTimeStamp>
 </PhasingStatistics>
 </Phasing_has_ScalingContainer>
 </PhasingContainer>

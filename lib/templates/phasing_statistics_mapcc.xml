@@ -3,8 +3,6 @@
 <binNumber>{bin_number:d}</binNumber>
 <lowRes>{bin_low_res:f}</lowRes>
 <highRes>{bin_high_res:f}</highRes>
-<metric>FOM</metric>
-<statisticsValue>{bin_fom:f}</statisticsValue>
 <metric>mapCC</metric>
 <statisticsValue>{bin_map_cc:f}</statisticsValue>
 <nReflections>
