@@ -691,31 +691,42 @@ class Fast_ep:
     def get_fom_mapCC(self, file_to_read):
         for record in open(file_to_read):
             check_string = 'd    inf'
-            if check_string in record: #special due to initial case and separated resolutions
+            #special due to initial case and separated resolutions
+            if check_string in record: 
                 resolution_ranges = record.split(check_string)[1].split(' - ')
                 for resolution_number in xrange(0, len(resolution_ranges) - 1):
                     resolution_number_name = str(resolution_number).zfill(2)
+                    k = 'RESOLUTION_LOW' + resolution_number_name
                     if resolution_number == 0:
-                        self._xml_results['RESOLUTION_LOW'+resolution_number_name] = self._data.resolution_range()[0]
+                        self._xml_results[k] = self._data.resolution_range()[0]
                     else:
-                        self._xml_results['RESOLUTION_LOW'+resolution_number_name] = float(resolution_ranges[resolution_number])
-                    self._xml_results['RESOLUTION_HIGH'+resolution_number_name] = float(resolution_ranges[resolution_number + 1])
+                        self._xml_results[k] = float(resolution_ranges[
+                            resolution_number])
+                    k = 'RESOLUTION_HIGH' + resolution_number_name
+                    self._xml_results[k] = float(resolution_ranges[
+                        resolution_number + 1])
+                    
             parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'], 
                            ['N   ', 'NREFLECTIONS']]
             for check_string, field_name in parse_pairs:
                 self._find_line_parse_string(check_string, record, field_name)
 
-    #look for a line starting with check_string, then split the rest of the string into values and store them
+    # look for a line starting with check_string, then split the rest of the 
+    # string into values and store them
+    
     def _find_line_parse_string(self, check_string, record, field_name):
         if check_string in record:
-            field_values = record.split(check_string)[1].split() #remove the check_string, then split the remainder
+            # remove the check_string, then split the remainder
+            field_values = record.split(check_string)[1].split() 
             for field_number in xrange(0, len(field_values)):
                 field_number_name = str(field_number).zfill(2)
-                self._xml_results[field_name+field_number_name] = field_values[field_number]
+                k = field_name + field_number_name
+                self._xml_results[k] = field_values[field_number]
 
     def write_xml(self):
         filename = os.path.join(self._wd, self._xml_name)
-        write_ispyb_xml(filename, self._full_command_line, self._wd, self._xml_results)
+        write_ispyb_xml(filename, self._full_command_line, self._wd, 
+                        self._xml_results)
 
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
