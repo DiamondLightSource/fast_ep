@@ -1,5 +1,6 @@
 <PhasingContainer>
 <PhasingAnalysis>
+<recordTimeStamp>{time_stamp:s}</recordTimeStamp>
 </PhasingAnalysis>
 
 <PhasingProgramRun>
@@ -16,7 +17,7 @@
 
 <Phasing>
 <spaceGroupId>{spacegroup_id:d}</spaceGroupId>
-<method>shelxe</method>
+<method>SAD</method>
 <solventContent>{solvent_content:f}</solventContent>
 <enantiomorph>{enantiomorph:d}</enantiomorph>
 <lowRes>{lowres:f}</lowRes>
@@ -31,7 +32,7 @@
 
 <SubstructureDetermination>
 <spaceGroupId>{spacegroup_id:d}</spaceGroupId>
-<method>shelxd</method>
+<method>SAD</method>
 <lowRes>{lowres:f}</lowRes>
 <highRes>{highres:f}</highRes>
 </SubstructureDetermination>

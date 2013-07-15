@@ -1,28 +1,35 @@
 import os
 
 def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
-    '''Write items in the _xml_results into an XML file to be stored in ISPyB'''
+    '''Write items in the _xml_results into an XML file to be stored in
+    ISPyB'''
     xml_template = os.path.join(os.environ['FAST_EP_ROOT'],
                                 'lib', 'templates', 'ispyb.xml')
-    phasing_statistics_fom_template = os.path.join(os.environ['FAST_EP_ROOT'],
-                                'lib', 'templates', 'phasing_statistics_fom.xml')
-    phasing_statistics_mapcc_template = os.path.join(os.environ['FAST_EP_ROOT'],
-                                'lib', 'templates', 'phasing_statistics_mapcc.xml')
+    phas_stat_fom_template = os.path.join(
+        os.environ['FAST_EP_ROOT'], 'lib', 'templates',
+        'phasing_statistics_fom.xml')
+    phas_stat_mapcc_template = os.path.join(
+        os.environ['FAST_EP_ROOT'], 'lib', 'templates',
+        'phasing_statistics_mapcc.xml')
 
     if not os.path.exists(xml_template):
         print 'XML template not found: %s' % xml_template
         return
-    if not os.path.exists(phasing_statistics_fom_template):
-        print 'XML template not found: %s' % phasing_statistics_fom_template
+    if not os.path.exists(phas_stat_fom_template):
+        print 'XML template not found: %s' % phas_stat_fom_template
         return
-    if not os.path.exists(phasing_statistics_mapcc_template):
-        print 'XML template not found: %s' % phasing_statistics_mapcc_template
+    if not os.path.exists(phas_stat_mapcc_template):
+        print 'XML template not found: %s' % phas_stat_mapcc_template
         return
 
-    #get phasing statistics from xml_results
-    all_phasing_statistics_fom = ""
-    all_phasing_statics_mapcc = ""
-    (all_phasing_statistics_fom, all_phasing_statistics_mapcc) = get_phasing_statistics(phasing_statistics_fom_template, phasing_statistics_mapcc_template, xml_results)
+    # get phasing statistics from xml_results
+
+    (all_phas_stat_fom, all_phas_stat_mapcc) = get_phasing_statistics(
+        phas_stat_fom_template, phas_stat_mapcc_template, xml_results)
+
+    import datetime
+    time_stamp = '%4d-%02d-%02d %02d:%02d:%02d' % tuple(datetime.datetime.now(
+        ).timetuple()[:6])
     
     open(filename, 'w').write(
         open(xml_template, 'r').read().format(
@@ -34,8 +41,9 @@ def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
             lowres = xml_results['LOWRES'],
             highres = xml_results['HIGHRES'],
             shelxc_spacegroup = xml_results['SHELXC_SPACEGROUP_ID'],
-            phasing_statistics_fom = all_phasing_statistics_fom,
-            phasing_statistics_mapcc = all_phasing_statistics_mapcc
+            phasing_statistics_fom = all_phas_stat_fom,
+            phasing_statistics_mapcc = all_phas_stat_mapcc,
+            time_stamp = time_stamp
             ))
 
 def get_phasing_statistics(fom_template, cc_template, xml_results):
@@ -43,7 +51,8 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
     all_phasing_statistics_fom = ""
     all_phasing_statistics_mapcc = ""
 
-    #find number of bins - use RESOLUTION_LOW as the field to check for this
+    # find number of bins - use RESOLUTION_LOW as the field to check for this
+
     done = False
     while not done:
         bin_number_name = str(total_bins).zfill(2)
@@ -53,6 +62,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
             done = True
             continue
         total_bins += 1
+        
     for bin_number in xrange(total_bins):
         bin_number_name = str(bin_number).zfill(2)
         resolution_low = float(xml_results['RESOLUTION_LOW'+bin_number_name])
