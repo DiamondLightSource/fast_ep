@@ -114,8 +114,10 @@ fast_ep {
     .type = str
   ntry = 200
     .type = int
-  xml = 'fast_ep.xml'
+  xml = ''
     .type = str
+  plot = True
+    .type = bool
 }
 """ % introspection.number_of_processors(return_value_if_unknown = 1))
         argument_interpreter = self._phil.command_line_argument_interpreter(
@@ -145,71 +147,9 @@ fast_ep {
     def get_xml(self):
         return self._parameters.fast_ep.xml
 
-def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
-    '''Plot cc weak vs. cc from shelxd run.'''
-
-    # first scrape out the cc values
-
-    cc_all = []
-    cc_weak = []
+    def get_plot(self):
+        return self._parameters.fast_ep.plot
     
-    for record in open(fa_lst_file):
-        if 'Try' in record and 'CC All/Weak' in record:
-            tokens = record.replace(',', ' ').replace('CPU', 'CPU ').split()
-            cc_all.append(float(tokens[6]))
-            cc_weak.append(float(tokens[8]))
-
-    # now generate plot 
-            
-    from matplotlib import pyplot
-
-    pyplot.xlabel('CC (all)')
-    pyplot.ylabel('CC (weak)')
-    pyplot.title('Substructure search %d sites in %s' % (sites, spacegroup))
-    pyplot.scatter(cc_all, cc_weak, label = 'CC')
-    pyplot.axis([-10, 100, -10, 100])
-    pyplot.legend()
-    pyplot.savefig(png_file)
-    pyplot.close()
-    
-    return
-
-def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
-    '''Plot contrast vs. cycle number from shelxe.'''
-
-    # first scrape out the contrast values
-
-    contrast_orig = []
-    contrast_other = []
-    
-    for record in open(original_lst):
-        if 'Contrast' in record and 'Connect' in record:
-            tokens = record.replace(',', ' ').split()
-            contrast_orig.append(float(tokens[5]))
-        
-    for record in open(other_lst):
-        if 'Contrast' in record and 'Connect' in record:
-            tokens = record.replace(',', ' ').split()
-            contrast_other.append(float(tokens[5]))
-
-    cycles = [j + 1 for j in range(len(contrast_orig))]
-            
-    # now generate plot 
-            
-    from matplotlib import pyplot
-
-    pyplot.xlabel('Cycle')
-    pyplot.ylabel('Contrast')
-    pyplot.title('Phasing contrast for solvent fraction %.2f' % solvent)
-    pyplot.plot(cycles, contrast_orig, label = 'Original')
-    pyplot.plot(cycles, contrast_other, label = 'Inverse')
-    pyplot.axis([0, len(contrast_orig), 0, 1.5])
-    pyplot.legend()
-    pyplot.savefig(png_file)
-    pyplot.close()
-
-    return
-
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -226,6 +166,7 @@ class Fast_ep:
         self._cpu = _parameters.get_cpu()
         self._machines = _parameters.get_machines()
         self._ntry = _parameters.get_ntry()
+        self._plot = _parameters.get_plot()
         self._data = None
 
         if self._machines == 1:
@@ -467,9 +408,12 @@ class Fast_ep:
                 wd = os.path.join(self._wd, spacegroup, str(nsite))
 
                 shelxd_log = os.path.join(wd, 'sad_fa.lst')
-                shelxd_plot = os.path.join(wd, 'sad_fa.png')
 
-                plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite)
+                if self._plot:
+                    from fast_ep_helpers import plot_shelxd_cc
+                    shelxd_plot = os.path.join(wd, 'sad_fa.png')
+
+                    plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite)
                 
                 if happy_shelxd_log(shelxd_log):
                     res = open(os.path.join(wd, 'sad_fa.res')).readlines()
@@ -524,9 +468,13 @@ class Fast_ep:
 
         best = os.path.join(self._wd, best_spacegroup, str(best_nsite))
 
-        for ending in 'lst', 'pdb', 'res', 'png':
+        endings = ['lst', 'pdb', 'res']
+        if self._plot:
+            endings.append('png')
+        
+        for ending in endings:
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
-            os.path.join(self._wd, 'sad_fa.%s' % ending))
+                            os.path.join(self._wd, 'sad_fa.%s' % ending))
 
         return
 
@@ -580,10 +528,13 @@ class Fast_ep:
 
         for solvent_fraction in solvent_fractions:
             wd = os.path.join(self._wd, '%.2f' % solvent_fraction)
-            plot_shelxe_contrast(os.path.join(wd, 'sad.lst'),
-                                 os.path.join(wd, 'sad_i.lst'),
-                                 os.path.join(wd, 'sad.png'),
-                                 solvent_fraction)
+
+            if self._plot:
+                from fast_ep_helpers import plot_shelxe_contrast
+                plot_shelxe_contrast(os.path.join(wd, 'sad.lst'),
+                                     os.path.join(wd, 'sad_i.lst'),
+                                     os.path.join(wd, 'sad.png'),
+                                     solvent_fraction)
             
             for record in open(os.path.join(wd, 'sad.lst')):
                 if 'Estimated mean FOM =' in record:
@@ -640,18 +591,20 @@ class Fast_ep:
         # e.g. coot.
 
         if best_hand == 'original':
-            for ending in ['phs', 'pha', 'lst', 'hat', 'png']:
+            for ending in ['phs', 'pha', 'lst', 'hat']:
                 shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
         else:
             for ending in ['phs', 'pha', 'lst', 'hat']:
                 shutil.copyfile(os.path.join(wd, 'sad_i.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
+            self._best_spacegroup = spacegroup_enantiomorph(
+                self._best_spacegroup)
+
+        if self._plot:
             for ending in ['png']:
                 shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
-            self._best_spacegroup = spacegroup_enantiomorph(
-                self._best_spacegroup)
 
         # convert sites to pdb, inverting if needed
 
@@ -724,6 +677,8 @@ class Fast_ep:
                 self._xml_results[k] = field_values[field_number]
 
     def write_xml(self):
+        if self._xml_name == '':
+            return
         filename = os.path.join(self._wd, self._xml_name)
         write_ispyb_xml(filename, self._full_command_line, self._wd, 
                         self._xml_results)
