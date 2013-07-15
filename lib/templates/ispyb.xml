@@ -15,6 +15,18 @@
 <filePath>{results_directory:s}</filePath>
 </PhasingProgramAttachment>
 
+<PhasingProgramAttachment>
+<fileType>graph</fileType>
+<fileName>sad.png</fileName>
+<filePath>{results_directory:s}</filePath>
+</PhasingProgramAttachment>
+
+<PhasingProgramAttachment>
+<fileType>graph</fileType>
+<fileName>sad_fa.png</fileName>
+<filePath>{results_directory:s}</filePath>
+</PhasingProgramAttachment>
+
 <Phasing>
 <spaceGroupId>{spacegroup_id:d}</spaceGroupId>
 <method>SAD</method>
