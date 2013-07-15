@@ -145,6 +145,71 @@ fast_ep {
     def get_xml(self):
         return self._parameters.fast_ep.xml
 
+def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
+    '''Plot cc weak vs. cc from shelxd run.'''
+
+    # first scrape out the cc values
+
+    cc_all = []
+    cc_weak = []
+    
+    for record in open(fa_lst_file):
+        if 'Try' in record and 'CC All/Weak' in record:
+            tokens = record.replace(',', ' ').split()
+            cc_all.append(float(tokens[6]))
+            cc_weak.append(float(tokens[8]))
+
+    # now generate plot 
+            
+    from matplotlib import pyplot
+
+    pyplot.xlabel('CC (all)')
+    pyplot.ylabel('CC (weak)')
+    pyplot.title('Substructure search %d sites in %s' % (sites, spacegroup))
+    pyplot.scatter(cc_all, cc_weak)
+    pyplot.axis([-10, 100, -10, 100])
+    pyplot.legend()
+    pyplot.savefig(png_file)
+    pyplot.close()
+    
+    return
+
+def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
+    '''Plot contrast vs. cycle number from shelxe.'''
+
+    # first scrape out the contrast values
+
+    contrast_orig = []
+    contrast_other = []
+    
+    for record in open(original_lst):
+        if 'Contrast' in record and 'Connect' in record:
+            tokens = record.replace(',', ' ').split()
+            contrast_orig.append(float(tokens[5]))
+        
+    for record in open(other_lst):
+        if 'Contrast' in record and 'Connect' in record:
+            tokens = record.replace(',', ' ').split()
+            contrast_other.append(float(tokens[5]))
+
+    cycles = [j + 1 for j in range(len(contrast_orig))]
+            
+    # now generate plot 
+            
+    from matplotlib import pyplot
+
+    pyplot.xlabel('Cycle')
+    pyplot.ylabel('Contrast')
+    pyplot.title('Phasing contrast for solvent fraction %.2f' % solvent)
+    pyplot.plot(cycles, contrast_orig, label = 'Original')
+    pyplot.plot(cycles, contrast_other, label = 'Inverse')
+    pyplot.axis([0, len(contrast_orig), 0, 1.5])
+    pyplot.legend()
+    pyplot.savefig(png_file)
+    pyplot.close()
+
+    return
+
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -276,7 +341,8 @@ class Fast_ep:
         nsite = self._nsites[0]
         ntry = self._ntry
 
-        self._xml_results['SHELXC_SPACEGROUP_ID'] = space_group_symbols(spacegroup).number()
+        self._xml_results['SHELXC_SPACEGROUP_ID'] = space_group_symbols(
+            spacegroup).number()
 
         if self._native_hklin:
             shelxc_output = run_job(
@@ -354,7 +420,7 @@ class Fast_ep:
         # to allocate on the command-line - this is done by passing -LN on the
         # command line where N is calculated as follows:
 
-        nrefl = 1 + 2 * int(math.floor(self._nrefl / 100000.0))
+        nrefl = 1 + 2 * int(1 + math.floor(self._nrefl / 100000.0))
 
         # modify the instruction file (.ins) for the number of sites and
         # symmetry operations for each run
@@ -400,7 +466,12 @@ class Fast_ep:
             for nsite in self._nsites:
                 wd = os.path.join(self._wd, spacegroup, str(nsite))
 
-                if happy_shelxd_log(os.path.join(wd, 'sad_fa.lst')):
+                shelxd_log = os.path.join(wd, 'sad_fa.lst')
+                shelxd_plot = os.path.join(wd, 'sad_fa.png')
+
+                plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite)
+                
+                if happy_shelxd_log(shelxd_log):
                     res = open(os.path.join(wd, 'sad_fa.res')).readlines()
                     cc, cc_weak, cfom, nsite_real = analyse_res(res)
 
@@ -422,7 +493,8 @@ class Fast_ep:
         for spacegroup in self._spacegroups:
             if spacegroup == best_spacegroup:
                 self._log('Spacegroup: %s (best)' % spacegroup)
-                self._xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
+                self._xml_results['SPACEGROUP'] = space_group_symbols(
+                    spacegroup).number()
             else:
                 self._log('Spacegroup: %s' % spacegroup)
 
@@ -452,7 +524,7 @@ class Fast_ep:
 
         best = os.path.join(self._wd, best_spacegroup, str(best_nsite))
 
-        for ending in 'lst', 'pdb', 'res':
+        for ending in 'lst', 'pdb', 'res', 'png':
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
             os.path.join(self._wd, 'sad_fa.%s' % ending))
 
@@ -508,6 +580,11 @@ class Fast_ep:
 
         for solvent_fraction in solvent_fractions:
             wd = os.path.join(self._wd, '%.2f' % solvent_fraction)
+            plot_shelxe_contrast(os.path.join(wd, 'sad.lst'),
+                                 os.path.join(wd, 'sad_i.lst'),
+                                 os.path.join(wd, 'sad.png'),
+                                 solvent_fraction)
+            
             for record in open(os.path.join(wd, 'sad.lst')):
                 if 'Estimated mean FOM =' in record:
                     fom_orig = float(record.split()[4])
@@ -551,7 +628,9 @@ class Fast_ep:
         else:
             raise RuntimeError, 'unknown hand'
         file_to_read = os.path.join(wd, filename_to_read)
+        
         self.get_fom_mapCC(file_to_read)
+        
         self._xml_results['FOM'] = best_fom
         self._xml_results['SOLVENTCONTENT'] = best_solvent
         self._xml_results['ENANTIOMORPH'] = (best_hand=='inverted')
@@ -561,12 +640,15 @@ class Fast_ep:
         # e.g. coot.
 
         if best_hand == 'original':
-            for ending in 'phs', 'pha', 'lst', 'hat':
+            for ending in ['phs', 'pha', 'lst', 'hat', 'png']:
                 shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
         else:
-            for ending in 'phs', 'pha', 'lst', 'hat':
+            for ending in ['phs', 'pha', 'lst', 'hat']:
                 shutil.copyfile(os.path.join(wd, 'sad_i.%s' % ending),
+                                os.path.join(self._wd, 'sad.%s' % ending))
+            for ending in ['png']:
+                shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
             self._best_spacegroup = spacegroup_enantiomorph(
                 self._best_spacegroup)
@@ -618,7 +700,8 @@ class Fast_ep:
                     else:
                         self._xml_results['RESOLUTION_LOW'+resolution_number_name] = float(resolution_ranges[resolution_number])
                     self._xml_results['RESOLUTION_HIGH'+resolution_number_name] = float(resolution_ranges[resolution_number + 1])
-            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'], ['N   ', 'NREFLECTIONS']]
+            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'], 
+                           ['N   ', 'NREFLECTIONS']]
             for check_string, field_name in parse_pairs:
                 self._find_line_parse_string(check_string, record, field_name)
 
