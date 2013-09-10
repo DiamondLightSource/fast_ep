@@ -80,7 +80,8 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
     
     for record in open(fa_lst_file):
         if 'Try' in record and 'CC All/Weak' in record:
-            tokens = record.replace(',', ' ').replace('CPU', 'CPU ').split()
+            tokens = record.replace(',', ' ').replace('CPU', 'CPU ').replace(
+                'CFOM', 'CFOM ').replace(' /', ' / ').split()
             cc_all.append(float(tokens[6]))
             cc_weak.append(float(tokens[8]))
 
