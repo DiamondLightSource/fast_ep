@@ -144,6 +144,24 @@ class Fast_mr:
         else:
             print 1/0
 
+        # now look for the results
+        worked = []
+        for job in jobs:
+            wd = job[0]
+            spacegroup = os.path.split(wd)[-1]
+            if os.path.exists(os.path.join(wd, 'mr%s.sol' % spacegroup)):
+                worked.append(os.path.join(wd, 'mr%s.sol' % spacegroup))
+
+        for w in worked:
+            sol = open(w).read()
+            for record in sol.split('\n'):
+                if 'SOLU SPAC' in record:
+                    spacegroup = record.replace(
+                        'SOLU SPAC', '').replace(' ', '')
+                if 'SOLU SET' in record:
+                    tfz = float(record.replace('=', ' ').split()[5])
+            print 'Solution: %s %.2f' % (spacegroup, tfz)
+
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
 
