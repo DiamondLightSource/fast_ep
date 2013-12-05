@@ -36,6 +36,7 @@ from generate_possible_spacegroups import generate_chiral_spacegroups, \
      spacegroup_enantiomorph, spacegroup_full, sanitize_spacegroup
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_mr_phaser import run_phaser_cluster
+from parse_pdb import pdb_file_nres
 
 class logger:
     def __init__(self):
@@ -54,10 +55,12 @@ class logger:
 
 class Fast_mr:
 
-    def __init__(self, hklin, xyzin):
+    def __init__(self, hklin, xyzin_and_ids):
         
-        self._hklin = hklin
-        self._xyzin = xyzin
+        self._hklin = os.path.abspath(hklin)
+        self._xyzins = [os.path.abspath(xyzin_and_id[0])
+                        for xyzin_and_id in xyzin_and_ids]
+        self._ids = [xyzin_and_id[1] for xyzin_and_id in xyzin_and_ids]
         self._cpu = 2
         self._machines = 10
         self._wd = os.getcwd()
@@ -105,6 +108,18 @@ class Fast_mr:
         self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
         self._log('Nrefl:       %d' % self._nrefl)
         self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
+
+        self._log('Input coordinate files:')
+        self._nres = []
+        for xyzin, _id in zip(self._xyzins, self._ids):
+            nres = pdb_file_nres(xyzin)
+            self._nres.append(nres)
+            self._log('%40s %8d %.3f' % (os.path.split(xyzin)[1], nres, _id))
+
+        total_nres = sum(self._nres)
+        # FIXME calculate probable number of complexes in here
+
+        self._copies = 1
         
         return
 
@@ -123,14 +138,21 @@ class Fast_mr:
             wd = os.path.join(self._wd, spacegroup)
             if not os.path.exists(wd):
                 os.makedirs(wd)
-            jobs.append(
-                (wd, ['mode mr_auto',
-                      'spacegroup %s' % spacegroup,
-                      'hklin %s' % self._hklin,
-                      'labin F=F SIGF=SIGF',
-                      'ensemble model pdb %s identity 100' % self._xyzin,
-                      'search ensemble model num 1',
-                      'root mr%s' % spacegroup]))
+            commands = ['mode mr_auto',
+                        'spacegroup %s' % spacegroup,
+                        'hklin %s' % self._hklin,
+                        'labin F=F SIGF=SIGF',
+                        'root mr%s' % spacegroup]
+            for j, (xyzin, _id, nres) in enumerate(
+                zip(self._xyzins, self._ids, self._nres)):
+                commands.append('ensemble m%d pdb %s identity %f' %
+                                (j, xyzin, 100 * _id))
+            for j, (xyzin, _id, nres) in enumerate(
+                zip(self._xyzins, self._ids, self._nres)):
+                commands.append('search ensemble m%d num %d' %
+                                (j, self._copies))
+            
+            jobs.append((wd, commands))
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
@@ -166,7 +188,18 @@ class Fast_mr:
         self._log('Time: %.2f' % (t1 - t0))
 
 if __name__ == '__main__':
-    fast_mr = Fast_mr(sys.argv[1], sys.argv[2])
+    xyzin_and_ids = []
+    for arg in sys.argv[2:]:
+        if ':' in arg:
+            xyzin = arg.split(':')[0]
+            _id = float(arg.split(':')[1])
+            if _id > 1.0:
+                _id /= 100.0
+            xyzin_and_ids.append((xyzin, _id))
+        else:
+            xyzin_and_ids.append((arg, 1.0))
+            
+    fast_mr = Fast_mr(sys.argv[1], xyzin_and_ids)
     try:
         fast_mr.do_mr()
     except RuntimeError, e:
