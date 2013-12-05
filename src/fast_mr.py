@@ -149,6 +149,10 @@ class Fast_mr:
                                 (j, xyzin, 100 * _id))
             for j, (xyzin, _id, nres) in enumerate(
                 zip(self._xyzins, self._ids, self._nres)):
+                commands.append('composition protein nres %d num %d' %
+                                (nres, self._copies))
+            for j, (xyzin, _id, nres) in enumerate(
+                zip(self._xyzins, self._ids, self._nres)):
                 commands.append('search ensemble m%d num %d' %
                                 (j, self._copies))
             
