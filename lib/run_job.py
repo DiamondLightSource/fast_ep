@@ -92,7 +92,8 @@ def run_job_cluster(executable, arguments = [], stdin = [],
 
     if ncpu > 1:
         qsub_output = run_job(
-            'qsub', timeout_tokens + ['-V', '-pe', 'smp', str(ncpu), 
+            'qsub', timeout_tokens + ['-V', '-pe', 'smp', str(ncpu),
+                                      '-l', 'release="*"',
                                       '-cwd', '-q', queue,
                                       'FEP_%s.sh' % rs], [], working_directory)
     else:
