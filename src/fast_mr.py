@@ -90,7 +90,7 @@ class Fast_mr:
         if not self._data:
             raise RuntimeError, 'no intensity data found in %s' % \
                 self._hklin
-        
+
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()
 
