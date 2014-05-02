@@ -87,6 +87,8 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
 
     # now generate plot 
             
+    import matplotlib
+    matplotlib.use('Agg')
     from matplotlib import pyplot
 
     pyplot.xlabel('CC (all)')
@@ -122,6 +124,8 @@ def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
             
     # now generate plot 
             
+    import matplotlib
+    matplotlib.use('Agg')
     from matplotlib import pyplot
 
     pyplot.xlabel('Cycle')
