@@ -104,7 +104,11 @@ def run_job_cluster(executable, arguments = [], stdin = [],
     if 'Unable to run job' in qsub_output[0]:
         raise RuntimeError, 'error submitting job to queue'
 
-    job_id = int(qsub_output[0].split()[2])
+
+    job_id = None
+    for record in qsub_output:
+        if 'Your job' in record:
+            job_id = int(record.split()[2])
 
     return job_id
 
