@@ -60,6 +60,27 @@ _autosharp_file = '''
   autoSHARP_data_1="{hklin:s}"
 '''
 
+def ctruncate_anomalous_signal(hklin):
+    '''
+
+    Estimated limits of anomalous signal
+      Wang limit (deltaI/I) > 0.6% : 1.3 A 
+      anomalous limit (deltaI/sig) > 1.3 : 2.1 A 
+      measurability limit (Nanon/Nov) > 5% : 1.8 A 
+
+Use
+
+      anomalous limit (deltaI/sig) > 1.3 : 2.1 A
+
+      + / - 0.2 A
+
+
+from
+
+ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '/*/*/[I(+),SIGI(+),I(-),SIGI(-)]'
+
+'''
+
 def autosharp(nres, user, wavelength, atom, nsites, hklin):
     return _autosharp_file.format(
         nres = nres,

@@ -116,7 +116,9 @@ fast_ep {
     .type = int
   xml = ''
     .type = str
-  plot = True
+  plot = False
+    .type = bool
+  trace = False
     .type = bool
 }
 """ % introspection.number_of_processors(return_value_if_unknown = 1))
@@ -150,6 +152,9 @@ fast_ep {
     def get_plot(self):
         return self._parameters.fast_ep.plot
     
+    def get_trace(self):
+        return self._parameters.fast_ep.trace
+    
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -167,6 +172,7 @@ class Fast_ep:
         self._machines = _parameters.get_machines()
         self._ntry = _parameters.get_ntry()
         self._plot = _parameters.get_plot()
+        self._trace = _parameters.get_trace()
         self._data = None
 
         if self._machines == 1:
@@ -606,6 +612,23 @@ class Fast_ep:
                 shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
                                 os.path.join(self._wd, 'sad.%s' % ending))
 
+        self._log('Best spacegroup: %s' % self._best_spacegroup)
+                
+        if self._trace:
+            # rerun shelxe to trace the chain
+            nres = 0
+            arguments = ['sad', 'sad_fa', '-h%d' % self._best_nsite,
+                         '-s%.2f' % best_solvent, '-a3', '-m20']
+            if not best_hand == 'original':
+                arguments.append('-i')
+            output = run_job('shelxe', arguments, [], self._wd)
+            for record in output:
+                if 'residues left after pruning' in record:
+                    nres = int(record.split()[0])
+            self._log('Traced:       %d' % nres)
+            shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
+                            os.path.join(self._wd, 'sad_trace.pdb'))
+                            
         # convert sites to pdb, inverting if needed
 
         xs = pdb.input(os.path.join(
@@ -615,8 +638,6 @@ class Fast_ep:
         else:
             open('sad.pdb', 'w').write(xs.as_pdb_file())
 
-        self._log('Best spacegroup: %s' % self._best_spacegroup)
-                
         run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
                                 '-colin', 'F FOM PHI SIGF',
                                 '-cell', '%f %f %f %f %f %f' % self._unit_cell,
