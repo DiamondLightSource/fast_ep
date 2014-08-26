@@ -41,6 +41,7 @@ from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res, \
      happy_shelxd_log
 from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
+from fast_ep_helpers import ctruncate_anomalous_signal
 
 def useful_number_sites(_cell, _pointgroup):
     nha = number_sites_estimate(_cell, _pointgroup)
@@ -57,7 +58,7 @@ def useful_number_sites(_cell, _pointgroup):
 
     return result
 
-def modify_ins_text(_ins_text, _spacegroup, _nsites):
+def modify_ins_text(_ins_text, _spacegroup, _nsites, _rlimit):
     '''Update the text in a SHELXD .ins file to handle the correct number
     of sites and spacegroup symmetry operations.'''
 
@@ -77,6 +78,8 @@ def modify_ins_text(_ins_text, _spacegroup, _nsites):
             symm = None
         elif 'FIND' in record:
             new_text.append(('FIND %d' % _nsites))
+        elif 'SHEL' in record:
+            new_text.append(('SHEL 999 %.1f' % _rlimit))
         else:
             new_text.append(record.strip())
 
@@ -283,6 +286,9 @@ class Fast_ep:
         self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
         
         self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
+        
+        self._ano_rlimits = ctruncate_anomalous_signal(self._hklin)
+        self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
 
         spacegroup = self._spacegroups[0]
         nsite = self._nsites[0]
@@ -374,19 +380,20 @@ class Fast_ep:
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
-                wd = os.path.join(self._wd, spacegroup, str(nsite))
-                if not os.path.exists(wd):
-                    os.makedirs(wd)
-
-                new_text = modify_ins_text(self._ins_text, spacegroup, nsite)
-
-                shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
-                                os.path.join(wd, 'sad_fa.hkl'))
-
-                open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
-                    '\n'.join(new_text))
-
-                jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
+                for rlimit in self._ano_rlimits:
+                    wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
+                    if not os.path.exists(wd):
+                        os.makedirs(wd)
+    
+                    new_text = modify_ins_text(self._ins_text, spacegroup, nsite, rlimit)
+    
+                    shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
+                                    os.path.join(wd, 'sad_fa.hkl'))
+    
+                    open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
+                        '\n'.join(new_text))
+    
+                    jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
@@ -406,36 +413,39 @@ class Fast_ep:
         best_spacegroup = None
         best_nsite = 0
         best_nsite_real = 0
+        best_ano_rlimit = 0
 
         results = { }
 
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
-                wd = os.path.join(self._wd, spacegroup, str(nsite))
-
-                shelxd_log = os.path.join(wd, 'sad_fa.lst')
-
-                if self._plot:
-                    from fast_ep_helpers import plot_shelxd_cc
-                    shelxd_plot = os.path.join(wd, 'sad_fa.png')
-
-                    plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite)
-                
-                if happy_shelxd_log(shelxd_log):
-                    res = open(os.path.join(wd, 'sad_fa.res')).readlines()
-                    cc, cc_weak, cfom, nsite_real = analyse_res(res)
-
-                    results[(spacegroup, nsite)] = (cc, cc_weak, cfom,
-                                                    nsite_real)
-
-                    if cfom > best_cfom:
-                        best_cfom = cfom
-                        best_spacegroup = spacegroup
-                        best_nsite = nsite
-                        best_nsite_real = nsite_real
-
-                else:
-                    results[(spacegroup, nsite)] = (0.0, 0.0, 0.0, 0)
+                for rlimit in self._ano_rlimits:
+                    wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
+    
+                    shelxd_log = os.path.join(wd, 'sad_fa.lst')
+    
+                    if self._plot:
+                        from fast_ep_helpers import plot_shelxd_cc
+                        shelxd_plot = os.path.join(wd, 'sad_fa.png')
+    
+                        plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite, rlimit)
+                    
+                    if happy_shelxd_log(shelxd_log):
+                        res = open(os.path.join(wd, 'sad_fa.res')).readlines()
+                        cc, cc_weak, cfom, nsite_real = analyse_res(res)
+    
+                        results[(spacegroup, nsite, rlimit)] = (cc, cc_weak, cfom,
+                                                        nsite_real)
+    
+                        if cfom > best_cfom:
+                            best_cfom = cfom
+                            best_spacegroup = spacegroup
+                            best_nsite = nsite
+                            best_nsite_real = nsite_real
+                            best_ano_rlimit = rlimit
+    
+                    else:
+                        results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0)
 
         if not best_spacegroup:
             raise RuntimeError, 'All shelxd jobs failed'
@@ -448,31 +458,34 @@ class Fast_ep:
             else:
                 self._log('Spacegroup: %s' % spacegroup)
 
-            self._log('No.  CCall  CCweak CFOM  No. found')
+            self._log('No.  Res.  CCall  CCweak CFOM  No. found')
             for nsite in self._nsites:
-                (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite)]
-                if (spacegroup, nsite) == (best_spacegroup, best_nsite):
-                    self._log('%3d %6.2f %6.2f %6.2f %3d (best)' %
-                              (nsite, cc, cc_weak, cfom, nsite_real))
-                else:
-                    self._log('%3d %6.2f %6.2f %6.2f %3d' %
-                              (nsite, cc, cc_weak, cfom, nsite_real))
+                for rlimit in self._ano_rlimits:
+                    (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite, rlimit)]
+                    if (spacegroup, nsite, rlimit) == (best_spacegroup, best_nsite, best_ano_rlimit):
+                        self._log('%3d  %.1f  %6.2f %6.2f %6.2f %3d (best)' %
+                            (nsite, rlimit, cc, cc_weak, cfom, nsite_real))
+                    else:
+                        self._log('%3d  %.1f  %6.2f %6.2f %6.2f %3d' %
+                            (nsite, rlimit, cc, cc_weak, cfom, nsite_real))
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
+        self._log('Best resolution: %.1f A' % best_ano_rlimit)
 
         self._log('Best CC / weak:  %.2f / %.2f' % \
-                  tuple(results[(best_spacegroup, best_nsite)][:2]))
+                  tuple(results[(best_spacegroup, best_nsite, best_ano_rlimit)][:2]))
 
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
+        self._best_ano_rlimit = best_ano_rlimit
         
         # copy back result files
 
-        best = os.path.join(self._wd, best_spacegroup, str(best_nsite))
+        best = os.path.join(self._wd, best_spacegroup, str(best_nsite), "%.1f" % best_ano_rlimit)
 
         endings = ['lst', 'pdb', 'res']
         if self._plot:

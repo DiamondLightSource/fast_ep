@@ -9,6 +9,8 @@
 
 import os
 
+from run_job import run_job
+
 _autosharp_file = '''
 # ----------------------------------------
 # General information about project
@@ -80,6 +82,17 @@ from
 ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '/*/*/[I(+),SIGI(+),I(-),SIGI(-)]'
 
 '''
+    ctruncate_output = run_job(' '.join(['ctruncate',
+                                         '-mtzin', hklin,
+                                         '-mtzout', 'truncated.mtz',
+                                         '-colano', '"/*/*/[I(+),SIGI(+),I(-),SIGI(-)]"']),
+                                         [], [])
+    open('ctruncate.log', 'w').write(''.join(ctruncate_output))
+    
+    for record in ctruncate_output:
+        if "anomalous limit (deltaI/sig)" in record:
+            rlimit = float(record.split()[-2])
+            return [rlimit - 0.2, rlimit, rlimit + 0.2]
 
 def autosharp(nres, user, wavelength, atom, nsites, hklin):
     return _autosharp_file.format(
@@ -91,7 +104,7 @@ def autosharp(nres, user, wavelength, atom, nsites, hklin):
         nsites = nsites,
         hklin = hklin)
 
-def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
+def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites, rlimit):
     '''Plot cc weak vs. cc from shelxd run.'''
 
     # first scrape out the cc values
@@ -114,7 +127,7 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites):
 
     pyplot.xlabel('CC (all)')
     pyplot.ylabel('CC (weak)')
-    pyplot.title('Substructure search %d sites in %s' % (sites, spacegroup))
+    pyplot.title('Substructure search %d sites in %s at %.1f A resolution' % (sites, spacegroup, rlimit))
     pyplot.scatter(cc_all, cc_weak, label = 'CC')
     pyplot.axis([-10, 100, -10, 100])
     pyplot.legend()
