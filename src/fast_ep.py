@@ -13,6 +13,7 @@ import time
 import shutil
 import math
 import traceback
+import json
 from multiprocessing import Pool
 
 from iotbx import mtz
@@ -573,7 +574,9 @@ class Fast_ep:
                 best_solvent = solvent_fraction
                 best_hand = 'inverted'
 
+        self._best_fom = best_fom
         self._best_solvent = best_solvent
+        self._best_hand = best_hand
 
         self._log('Solv. Orig. Inv.')
         for solvent_fraction in solvent_fractions:
@@ -629,7 +632,7 @@ class Fast_ep:
                 
         if self._trace:
             # rerun shelxe to trace the chain
-            nres = 0
+            self._nres_trace = 0
             arguments = ['sad', 'sad_fa', '-h%d' % self._best_nsite,
                          '-s%.2f' % best_solvent, '-a3', '-m20']
             if not best_hand == 'original':
@@ -637,8 +640,8 @@ class Fast_ep:
             output = run_job('shelxe', arguments, [], self._wd)
             for record in output:
                 if 'residues left after pruning' in record:
-                    nres = int(record.split()[0])
-            self._log('Traced:       %d' % nres)
+                    self._nres_trace = int(record.split()[0])
+            self._log('Traced:       %d' % self._nres_trace)
             shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
                             os.path.join(self._wd, 'sad_trace.pdb'))
                             
@@ -672,7 +675,22 @@ class Fast_ep:
             'SPACEGROUP: %s' % self._best_spacegroup,
             'NSITE: %d' % self._best_nsite,
             'SOLVENT: %.2f' % self._best_solvent, '']))
-
+        
+        json_dict = {'spacegroup' : self._best_spacegroup,
+                                    'nsite' : self._best_nsite,
+                                    'solvent' : self._best_solvent,
+                                    'enantiomorph' : self._best_hand=='inverted',
+                                    'fom' : self._best_fom,
+                                    'ha_pdbout' : 'sad.pdb',
+                                    'mtzout' : 'sad.mtz'}
+        if self._trace:
+            json_dict.update({'nres_build' : self._nres_trace,
+                              'pdbout' : 'sad_trace.pdb'})
+        
+        json_data = json.dumps(json_dict, indent=4, separators=(',', ':'))
+        with open(os.path.join(self._wd, 'fast_ep.json'), 'w') as json_file:
+            json_file.write(json_data)
+        
         return
 
     def get_fom_mapCC(self, file_to_read):
