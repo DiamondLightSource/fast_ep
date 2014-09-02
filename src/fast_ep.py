@@ -14,6 +14,8 @@ import shutil
 import math
 import traceback
 import json
+import string
+from os.path import basename, splitext
 from multiprocessing import Pool
 
 from iotbx import mtz
@@ -116,6 +118,12 @@ fast_ep {
     .type = str
   native = None
     .type = str
+  atom = Se
+    .type = str
+  spg = None
+    .type = str
+  nsites = None
+    .type = int
   ntry = 200
     .type = int
   xml = ''
@@ -146,6 +154,15 @@ fast_ep {
 
     def get_native(self):
         return self._parameters.fast_ep.native
+    
+    def get_atom(self):
+        return self._parameters.fast_ep.atom
+    
+    def get_spg(self):
+        return self._parameters.fast_ep.spg
+
+    def get_nsites(self):
+        return self._parameters.fast_ep.nsites
 
     def get_ntry(self):
         return self._parameters.fast_ep.ntry
@@ -174,6 +191,7 @@ class Fast_ep:
         self._native_hklin = _parameters.get_native()
         self._cpu = _parameters.get_cpu()
         self._machines = _parameters.get_machines()
+        self._atom = _parameters.get_atom()
         self._ntry = _parameters.get_ntry()
         self._plot = _parameters.get_plot()
         self._trace = _parameters.get_trace()
@@ -281,12 +299,17 @@ class Fast_ep:
         # in here run shelxc to generate the ins file (which will need to be
         # modified) and the hkl files, which will need to be copied.
 
-        self._spacegroups = generate_chiral_spacegroups_unique(
-            self._pointgroup)
+        if _parameters.get_spg():
+            self._spacegroups = [_parameters.get_spg(),]
+        else:
+            self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
 
         self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
         
-        self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
+        if _parameters.get_nsites():
+            self._nsites = [_parameters.get_nsites(),]
+        else:
+            self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
         
         self._ano_rlimits = ctruncate_anomalous_signal(self._hklin)
         self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
@@ -305,6 +328,7 @@ class Fast_ep:
                  'nat native.sca',
                 'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
                 'spag %s' % sanitize_spacegroup(spacegroup),
+                'sfac %s' % string.upper(_parameters.get_atom()),
                 'find %d' % nsite,
                 'mind -3.5',
                 'ntry %d' % ntry])
@@ -315,9 +339,10 @@ class Fast_ep:
                 ['sad sad.sca',
                  'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
                  'spag %s' % sanitize_spacegroup(spacegroup),
+                 'sfac %s' % string.upper(_parameters.get_atom()),
                  'find %d' % nsite,
                  'mind -3.5',
-                'ntry %d' % ntry])
+                 'ntry %d' % ntry])
         
         # FIXME in here perform some analysis of the shelxc output - how much
         # anomalous signal was reported?
