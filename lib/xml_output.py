@@ -1,4 +1,6 @@
 import os
+import json
+from lxml import etree
 
 def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
     '''Write items in the _xml_results into an XML file to be stored in
@@ -88,4 +90,28 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
                 bin_map_cc = mapcc,
                 num_refl = nreflections)
     return (all_phs_stat_fom, all_phs_stat_mapcc)
+
+def xmlfile2json(filename):
+    '''Parse an ISpyB XML file into a JSON formatted string'''
+    
+    tree = etree.parse(filename)
+    xml_dict = __node2json(tree.getroot())
+    return json.dumps(xml_dict, indent=4, separators=(',', ':'))
+
+def __node2json(node):
+    if len(node):
+        node_dict = {}
+        for child in node:
+            if child.tag in node_dict:
+                if isinstance(node_dict[child.tag], list):
+                    node_dict[child.tag].append(__node2json(child))
+                else:
+                    node_dict[child.tag] = [node_dict[child.tag], __node2json(child)]
+            else:
+                node_dict[child.tag] = __node2json(child)
         
+        if node_dict:
+            return node_dict
+        return None
+    else:
+        return node.text

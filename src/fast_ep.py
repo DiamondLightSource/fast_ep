@@ -13,7 +13,6 @@ import time
 import shutil
 import math
 import traceback
-import json
 import string
 from os.path import basename, splitext
 from multiprocessing import Pool
@@ -33,7 +32,7 @@ fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
-from xml_output import write_ispyb_xml
+from xml_output import write_ispyb_xml, xmlfile2json
 
 from generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
      spacegroup_enantiomorph, spacegroup_full, sanitize_spacegroup
@@ -701,21 +700,6 @@ class Fast_ep:
             'NSITE: %d' % self._best_nsite,
             'SOLVENT: %.2f' % self._best_solvent, '']))
         
-        json_dict = {'spacegroup' : self._best_spacegroup,
-                                    'nsite' : self._best_nsite,
-                                    'solvent' : self._best_solvent,
-                                    'enantiomorph' : self._best_hand=='inverted',
-                                    'fom' : self._best_fom,
-                                    'ha_pdbout' : 'sad.pdb',
-                                    'mtzout' : 'sad.mtz'}
-        if self._trace:
-            json_dict.update({'nres_build' : self._nres_trace,
-                              'pdbout' : 'sad_trace.pdb'})
-        
-        json_data = json.dumps(json_dict, indent=4, separators=(',', ':'))
-        with open(os.path.join(self._wd, 'fast_ep.json'), 'w') as json_file:
-            json_file.write(json_data)
-        
         return
 
     def get_fom_mapCC(self, file_to_read):
@@ -759,6 +743,11 @@ class Fast_ep:
         filename = os.path.join(self._wd, self._xml_name)
         write_ispyb_xml(filename, self._full_command_line, self._wd, 
                         self._xml_results)
+        
+        json_file_name = '.'.join([splitext(basename(self._xml_name))[0], 'json'])
+        with open(os.path.join(self._wd, json_file_name), 'w') as json_file:
+            json_data = xmlfile2json(filename)
+            json_file.write(json_data)
 
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())

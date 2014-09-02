@@ -50,8 +50,7 @@
 </SubstructureDetermination>
 
 <Phasing_has_ScalingContainer>
-<Phasing_has_Scaling>
-</Phasing_has_Scaling>
+<Phasing_has_Scaling></Phasing_has_Scaling>
 {phasing_statistics_fom:s}
 {phasing_statistics_mapcc:s}
 </Phasing_has_ScalingContainer>

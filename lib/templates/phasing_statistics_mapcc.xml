@@ -5,7 +5,5 @@
 <highRes>{bin_high_res:f}</highRes>
 <metric>mapCC</metric>
 <statisticsValue>{bin_map_cc:f}</statisticsValue>
-<nReflections>
-{num_refl:d}
-</nReflections>
+<nReflections>{num_refl:d}</nReflections>
 </PhasingStatistics>
