@@ -8,6 +8,7 @@
 # format_for_autosharp - format an input file for autosharp.
 
 import os
+from math import isinf, isnan
 
 from run_job import run_job
 
@@ -92,7 +93,9 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
     for record in ctruncate_output:
         if "anomalous limit (deltaI/sig)" in record:
             rlimit = float(record.split()[-2])
-            return [rlimit - 0.2, rlimit, rlimit + 0.2]
+            if not isinf(rlimit) and not isnan(rlimit):
+                return [rlimit - 0.2, rlimit, rlimit + 0.2]
+    return None
 
 def autosharp(nres, user, wavelength, atom, nsites, hklin):
     return _autosharp_file.format(
