@@ -743,11 +743,16 @@ class Fast_ep:
         filename = os.path.join(self._wd, self._xml_name)
         write_ispyb_xml(filename, self._full_command_line, self._wd, 
                         self._xml_results)
-        
-        json_file_name = '.'.join([splitext(basename(self._xml_name))[0], 'json'])
-        with open(os.path.join(self._wd, json_file_name), 'w') as json_file:
-            json_data = xmlfile2json(filename)
-            json_file.write(json_data)
+
+        try:
+            json_file_name = '.'.join([splitext(basename(self._xml_name))[0],
+                                       'json'])
+            with open(os.path.join(
+                self._wd, json_file_name), 'w') as json_file:
+                json_data = xmlfile2json(filename)
+                json_file.write(json_data)
+        except ImportError, e:
+            pass
 
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
