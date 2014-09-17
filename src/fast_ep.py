@@ -360,6 +360,11 @@ class Fast_ep:
             if record.strip().startswith('<d"/sig>'):
                 table['dsig'] = map(float, record.split()[1:])
 
+        for row in ['isig', 'comp', 'dsig']:
+            pad = len(table['dmin']) - len(table[row])
+            if pad > 0:
+                table[row] += [float('nan')] * pad
+        
         shells = len(table['dmin'])
 
         self._log('SHELXC summary:')

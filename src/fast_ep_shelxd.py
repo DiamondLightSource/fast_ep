@@ -60,19 +60,34 @@ def run_shelxd_local(_settings):
     return
 
 def analyse_res(_res):
-    cc = float(_res[0].split()[5])
-    cc_weak = float(_res[0].split()[7])
-    cfom = float(_res[0].split()[9])
+    
+    try:
+        cc = float(_res[0].split()[5])
+    except (ValueError, IndexError):
+        cc = float('nan')
+    
+    try:
+        cc_weak = float(_res[0].split()[7])
+    except (ValueError, IndexError):
+        cc_weak = float('nan')
+    
+    try:
+        cfom = float(_res[0].split()[9])
+    except (ValueError, IndexError):
+        cfom = float('nan')
     
     # estimate real # sites - as drop below 30% relative occupancy
     
     nsites_real = 0
 
-    for record in _res:
-        if not 'SE' in record[:2]:
-            continue
-        if float(record.split()[5]) > 0.3:
-            nsites_real += 1
+    try:
+        for record in _res:
+            if not 'SE' in record[:2]:
+                continue
+            if float(record.split()[5]) > 0.3:
+                nsites_real += 1
+    except (ValueError, IndexError):
+        nsites_real = float('nan')
 
     return cc, cc_weak, cfom, nsites_real
 
