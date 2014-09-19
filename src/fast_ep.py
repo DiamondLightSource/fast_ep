@@ -14,6 +14,7 @@ import shutil
 import math
 import traceback
 import string
+import json
 from os.path import basename, splitext
 from multiprocessing import Pool
 
@@ -448,6 +449,8 @@ class Fast_ep:
         # now gather up all of the results, find the one with best cfom
 
         best_cfom = 0.0
+        best_cc = 0.0
+        best_ccweak = 0.0
         best_spacegroup = None
         best_nsite = 0
         best_nsite_real = 0
@@ -477,6 +480,8 @@ class Fast_ep:
     
                         if cfom > best_cfom:
                             best_cfom = cfom
+                            best_cc = cc
+                            best_ccweak = cc_weak
                             best_spacegroup = spacegroup
                             best_nsite = nsite
                             best_nsite_real = nsite_real
@@ -513,13 +518,14 @@ class Fast_ep:
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
         self._log('Best resolution: %.1f A' % best_ano_rlimit)
-
-        self._log('Best CC / weak:  %.2f / %.2f' % \
-                  tuple(results[(best_spacegroup, best_nsite, best_ano_rlimit)][:2]))
+        self._log('Best CC / weak:  %.2f / %.2f' % (best_cc, best_ccweak))
 
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
         self._best_ano_rlimit = best_ano_rlimit
+        self._best_cfom = best_cfom
+        self._best_cc = best_cc
+        self._best_ccweak = best_ccweak
         
         # copy back result files
 
@@ -712,6 +718,27 @@ class Fast_ep:
             'SPACEGROUP: %s' % self._best_spacegroup,
             'NSITE: %d' % self._best_nsite,
             'SOLVENT: %.2f' % self._best_solvent, '']))
+        
+        json_dict = {'_hklin'          : self._hklin,
+                     '_cpu'            : self._cpu,
+                     '_machines'       : self._machines,
+                     '_use_cluster'    : True,
+                     '_spacegroup'     : [self._best_spacegroup],
+                     '_nsites'         : [self._best_nsite],
+                     'nsite_real'      : self._best_nsite,
+                     'solv'            : self._best_solvent,
+                     'cc'              : self._best_cc,
+                     'cc_weak'         : self._best_ccweak,
+                     'cfom'            : self._best_cfom,
+                     'fom'             : self._best_fom,
+                     'inverted'        : self._best_hand=='inverted',
+                     '_trace'          : False,
+                     '_xml_name'       : None
+                    }
+        
+        json_data = json.dumps(json_dict, indent=4, separators=(',', ':'))
+        with open(os.path.join(self._wd, 'fast_ep_data.json'), 'w') as json_file:
+            json_file.write(json_data)
         
         return
 
