@@ -67,9 +67,9 @@ def ctruncate_anomalous_signal(hklin):
     '''
 
     Estimated limits of anomalous signal
-      Wang limit (deltaI/I) > 0.6% : 1.3 A 
-      anomalous limit (deltaI/sig) > 1.3 : 2.1 A 
-      measurability limit (Nanon/Nov) > 5% : 1.8 A 
+      Wang limit (deltaI/I) > 0.6% : 1.3 A
+      anomalous limit (deltaI/sig) > 1.3 : 2.1 A
+      measurability limit (Nanon/Nov) > 5% : 1.8 A
 
 Use
 
@@ -91,7 +91,7 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
     open('ctruncate.log', 'w').write(''.join(ctruncate_output))
 
     maximum_resolution = 100.0
-    
+
     for record in ctruncate_output:
         if 'Maximum resolution =' in record:
             maximum_resolution = float(record.split()[-2])
@@ -101,7 +101,7 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
                 min_limit = rlimit - 0.2
                 if min_limit < maximum_resolution:
                     min_limit = maximum_resolution
-            
+
                 return [min_limit, rlimit, rlimit + 0.2]
     return None
 
@@ -122,7 +122,7 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites, rlimit):
 
     cc_all = []
     cc_weak = []
-    
+
     for record in open(fa_lst_file):
         if 'Try' in record and 'CC All/Weak' in record:
             tokens = record.replace(',', ' ').replace('CPU', 'CPU ').replace(
@@ -130,8 +130,8 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites, rlimit):
             cc_all.append(float(tokens[6]))
             cc_weak.append(float(tokens[8]))
 
-    # now generate plot 
-            
+    # now generate plot
+
     import matplotlib
     matplotlib.use('Agg')
     from matplotlib import pyplot
@@ -144,7 +144,7 @@ def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites, rlimit):
     pyplot.legend()
     pyplot.savefig(png_file)
     pyplot.close()
-    
+
     return
 
 def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
@@ -154,21 +154,21 @@ def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
 
     contrast_orig = []
     contrast_other = []
-    
+
     for record in open(original_lst):
         if 'Contrast' in record and 'Connect' in record:
             tokens = record.replace(',', ' ').split()
             contrast_orig.append(float(tokens[5]))
-        
+
     for record in open(other_lst):
         if 'Contrast' in record and 'Connect' in record:
             tokens = record.replace(',', ' ').split()
             contrast_other.append(float(tokens[5]))
 
     cycles = [j + 1 for j in range(len(contrast_orig))]
-            
-    # now generate plot 
-            
+
+    # now generate plot
+
     import matplotlib
     matplotlib.use('Agg')
     from matplotlib import pyplot

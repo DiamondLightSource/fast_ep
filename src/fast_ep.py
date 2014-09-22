@@ -140,7 +140,7 @@ fast_ep {
             command_line_phil = argument_interpreter.process(arg = argv)
             self._phil = self._phil.fetch(command_line_phil)
         self._parameters = self._phil.extract()
-        
+
         return
 
     def get_machines(self):
@@ -154,10 +154,10 @@ fast_ep {
 
     def get_native(self):
         return self._parameters.fast_ep.native
-    
+
     def get_atom(self):
         return self._parameters.fast_ep.atom
-    
+
     def get_spg(self):
         return self._parameters.fast_ep.spg
 
@@ -172,10 +172,10 @@ fast_ep {
 
     def get_plot(self):
         return self._parameters.fast_ep.plot
-    
+
     def get_trace(self):
         return self._parameters.fast_ep.trace
-    
+
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -186,7 +186,7 @@ class Fast_ep:
         real work is done. This includes assessment of the anomalous signal,
         the signal to noise and conversion to pseudo-scalepack format of the
         data for input into shelxc, which is used to compute FA values.'''
-        
+
         self._hklin = _parameters.get_sad()
         self._native_hklin = _parameters.get_native()
         self._cpu = _parameters.get_cpu()
@@ -229,7 +229,7 @@ class Fast_ep:
         if not self._data:
             raise RuntimeError, 'no anomalous intensity data found in %s' % \
                 self._hklin
-        
+
         # --- NATIVE DATA ---
 
         if self._native_hklin:
@@ -249,7 +249,7 @@ class Fast_ep:
 
         if not self._data:
             raise RuntimeError, 'no intensity data found in %s' % self._hklin
-        
+
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()
 
@@ -268,12 +268,12 @@ class Fast_ep:
         self._log('N try:       %d' % self._ntry)
         self._log('Pointgroup:  %s' % m.space_group().type().lookup_symbol())
         self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
-        
+
         self._xml_name = _parameters.get_xml()
         self._xml_results= {}
         self._xml_results['LOWRES'] = self._data.resolution_range()[0]
         self._xml_results['HIGHRES'] = self._data.resolution_range()[1]
-        
+
         self._log('Nrefl:       %d / %d' % (self._nrefl,
                                             self._data.n_bijvoet_pairs()))
         self._log('DF/F:        %.3f' % self._data.anomalous_signal())
@@ -291,7 +291,7 @@ class Fast_ep:
 
         merge_scalepack.write(file_name = 'sad.sca',
                               miller_array = self._data)
-        
+
         if self._native_hklin:
             merge_scalepack.write(file_name = 'native.sca',
                                   miller_array = self._native)
@@ -305,12 +305,12 @@ class Fast_ep:
             self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
 
         self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
-        
+
         if _parameters.get_nsites():
             self._nsites = [_parameters.get_nsites(),]
         else:
             self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
-        
+
         self._ano_rlimits = ctruncate_anomalous_signal(self._hklin)
 
         spacegroup = self._spacegroups[0]
@@ -342,10 +342,10 @@ class Fast_ep:
                  'find %d' % nsite,
                  'mind -3.5',
                  'ntry %d' % ntry])
-        
+
         # FIXME in here perform some analysis of the shelxc output - how much
         # anomalous signal was reported?
- 
+
         open('shelxc.log', 'w').write(''.join(shelxc_output))
 
         table = { }
@@ -365,7 +365,7 @@ class Fast_ep:
             pad = len(table['dmin']) - len(table[row])
             if pad > 0:
                 table[row] += [float('nan')] * pad
-        
+
         shells = len(table['dmin'])
 
         self._log('SHELXC summary:')
@@ -377,16 +377,16 @@ class Fast_ep:
             if not self._ano_rlimits and table['dsig'][j] < 0.8:
                 rlimit = table['dmin'][max(0, j - 1)]
                 self._ano_rlimits =  [rlimit - 0.2, rlimit, rlimit + 0.2]
-                
+
         if not self._ano_rlimits:
             rlimit = self._data.resolution_range()[1]
             self._ano_rlimits =  [rlimit, rlimit + 0.25, rlimit + 0.5]
 
         self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
-        
+
         # store the ins file text - will need to modify this when we come to
         # run shelxd...
-        
+
         self._ins_text = open('sad_fa.ins', 'r').readlines()
 
         return
@@ -423,22 +423,22 @@ class Fast_ep:
                     wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
                     if not os.path.exists(wd):
                         os.makedirs(wd)
-    
+
                     new_text = modify_ins_text(self._ins_text, spacegroup, nsite, rlimit)
-    
+
                     shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
                                     os.path.join(wd, 'sad_fa.hkl'))
-    
+
                     open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
                         '\n'.join(new_text))
-    
+
                     jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
 
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
-        
+
         pool = Pool(min(njobs, len(jobs)))
 
         if cluster:
@@ -462,22 +462,22 @@ class Fast_ep:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
                     wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
-    
+
                     shelxd_log = os.path.join(wd, 'sad_fa.lst')
-    
+
                     if self._plot:
                         from fast_ep_helpers import plot_shelxd_cc
                         shelxd_plot = os.path.join(wd, 'sad_fa.png')
-    
+
                         plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite, rlimit)
-                    
+
                     if happy_shelxd_log(shelxd_log):
                         res = open(os.path.join(wd, 'sad_fa.res')).readlines()
                         cc, cc_weak, cfom, nsite_real = analyse_res(res)
-    
+
                         results[(spacegroup, nsite, rlimit)] = (cc, cc_weak, cfom,
                                                         nsite_real)
-    
+
                         if cfom > best_cfom:
                             best_cfom = cfom
                             best_cc = cc
@@ -486,7 +486,7 @@ class Fast_ep:
                             best_nsite = nsite
                             best_nsite_real = nsite_real
                             best_ano_rlimit = rlimit
-    
+
                     else:
                         results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0)
 
@@ -526,7 +526,7 @@ class Fast_ep:
         self._best_cfom = best_cfom
         self._best_cc = best_cc
         self._best_ccweak = best_ccweak
-        
+
         # copy back result files
 
         best = os.path.join(self._wd, best_spacegroup, str(best_nsite), "%.1f" % best_ano_rlimit)
@@ -534,7 +534,7 @@ class Fast_ep:
         endings = ['lst', 'pdb', 'res']
         if self._plot:
             endings.append('png')
-        
+
         for ending in endings:
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
                             os.path.join(self._wd, 'sad_fa.%s' % ending))
@@ -550,7 +550,7 @@ class Fast_ep:
         be remembered in transforming the output.'''
 
         t0 = time.time()
-        
+
         cluster = self._cluster
         njobs = self._machines
         ncpu = self._cpu
@@ -598,7 +598,7 @@ class Fast_ep:
                                      os.path.join(wd, 'sad_i.lst'),
                                      os.path.join(wd, 'sad.png'),
                                      solvent_fraction)
-            
+
             for record in open(os.path.join(wd, 'sad.lst')):
                 if 'Estimated mean FOM =' in record:
                     fom_orig = float(record.split()[4])
@@ -644,9 +644,9 @@ class Fast_ep:
         else:
             raise RuntimeError, 'unknown hand'
         file_to_read = os.path.join(wd, filename_to_read)
-        
+
         self.get_fom_mapCC(file_to_read)
-        
+
         self._xml_results['FOM'] = best_fom
         self._xml_results['SOLVENTCONTENT'] = best_solvent
         self._xml_results['ENANTIOMORPH'] = (best_hand=='inverted')
@@ -672,7 +672,7 @@ class Fast_ep:
                                 os.path.join(self._wd, 'sad.%s' % ending))
 
         self._log('Best spacegroup: %s' % self._best_spacegroup)
-                
+
         if self._trace:
             # rerun shelxe to trace the chain
             self._nres_trace = 0
@@ -687,7 +687,7 @@ class Fast_ep:
             self._log('Traced:       %d' % self._nres_trace)
             shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
                             os.path.join(self._wd, 'sad_trace.pdb'))
-                            
+
         # convert sites to pdb, inverting if needed
 
         xs = pdb.input(os.path.join(
@@ -713,12 +713,12 @@ class Fast_ep:
         '''Write a little data file which can be used for subsequent analysis
         with other phasing programs, based on what we have learned in the
         analysis above.'''
-        
+
         open(os.path.join(self._wd, 'fast_ep.dat'), 'w').write('\n'.join([
             'SPACEGROUP: %s' % self._best_spacegroup,
             'NSITE: %d' % self._best_nsite,
             'SOLVENT: %.2f' % self._best_solvent, '']))
-        
+
         json_dict = {'_hklin'          : self._hklin,
                      '_cpu'            : self._cpu,
                      '_machines'       : self._machines,
@@ -735,18 +735,18 @@ class Fast_ep:
                      '_trace'          : False,
                      '_xml_name'       : None
                     }
-        
+
         json_data = json.dumps(json_dict, indent=4, separators=(',', ':'))
         with open(os.path.join(self._wd, 'fast_ep_data.json'), 'w') as json_file:
             json_file.write(json_data)
-        
+
         return
 
     def get_fom_mapCC(self, file_to_read):
         for record in open(file_to_read):
             check_string = 'd    inf'
             #special due to initial case and separated resolutions
-            if check_string in record: 
+            if check_string in record:
                 resolution_ranges = record.split(check_string)[1].split(' - ')
                 for resolution_number in xrange(0, len(resolution_ranges) - 1):
                     resolution_number_name = str(resolution_number).zfill(2)
@@ -759,19 +759,19 @@ class Fast_ep:
                     k = 'RESOLUTION_HIGH' + resolution_number_name
                     self._xml_results[k] = float(resolution_ranges[
                         resolution_number + 1])
-                    
-            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'], 
+
+            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'],
                            ['N   ', 'NREFLECTIONS']]
             for check_string, field_name in parse_pairs:
                 self._find_line_parse_string(check_string, record, field_name)
 
-    # look for a line starting with check_string, then split the rest of the 
+    # look for a line starting with check_string, then split the rest of the
     # string into values and store them
-    
+
     def _find_line_parse_string(self, check_string, record, field_name):
         if check_string in record:
             # remove the check_string, then split the remainder
-            field_values = record.split(check_string)[1].split() 
+            field_values = record.split(check_string)[1].split()
             for field_number in xrange(0, len(field_values)):
                 field_number_name = str(field_number).zfill(2)
                 k = field_name + field_number_name
@@ -781,7 +781,7 @@ class Fast_ep:
         if self._xml_name == '':
             return
         filename = os.path.join(self._wd, self._xml_name)
-        write_ispyb_xml(filename, self._full_command_line, self._wd, 
+        write_ispyb_xml(filename, self._full_command_line, self._wd,
                         self._xml_results)
 
         try:

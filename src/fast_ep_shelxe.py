@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # fast_ep_shelxe ->
-# 
+#
 # code to run shelxe and manage the jobs - this will be called from within
 # a multiprocess task so life is easier if the input is provided in the form
 # of a dictionary with the information we need.
@@ -41,7 +41,7 @@ def run_shelxe_cluster(_settings):
         job_id = run_job_cluster(
             'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
                        '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
-        
+
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
 

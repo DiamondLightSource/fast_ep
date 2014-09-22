@@ -86,7 +86,7 @@ def go_fast_ep_from_data(_mtz_file):
         if signal_to_noise < 1.0:
             return False
         return True
-    
+
     else:
         data2 = data.resolution_filter(d_min = 2.0)
         differences = data2.anomalous_differences()
@@ -100,11 +100,11 @@ def go_fast_ep_from_data(_mtz_file):
             return False
 
         return True
-    
+
 if __name__ == '__main__':
 
     status = False
-    
+
     try:
         status = go_fast_ep_from_data(sys.argv[1])
     except:

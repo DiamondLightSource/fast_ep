@@ -56,7 +56,7 @@ class logger:
 class Fast_mr:
 
     def __init__(self, hklin, xyzin_and_ids):
-        
+
         self._hklin = os.path.abspath(hklin)
         self._xyzins = [os.path.abspath(xyzin_and_id[0])
                         for xyzin_and_id in xyzin_and_ids]
@@ -120,7 +120,7 @@ class Fast_mr:
         # FIXME calculate probable number of complexes in here
 
         self._copies = 1
-        
+
         return
 
     def do_mr(self):
@@ -155,14 +155,14 @@ class Fast_mr:
                 zip(self._xyzins, self._ids, self._nres)):
                 commands.append('search ensemble m%d num %d' %
                                 (j, self._copies))
-            
+
             jobs.append((wd, commands))
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
 
         self._log('Running %d x phaser jobs' % len(jobs))
-        
+
         pool = Pool(min(njobs, len(jobs)))
 
         if cluster:
@@ -202,7 +202,7 @@ if __name__ == '__main__':
             xyzin_and_ids.append((xyzin, _id))
         else:
             xyzin_and_ids.append((arg, 1.0))
-            
+
     fast_mr = Fast_mr(sys.argv[1], xyzin_and_ids)
     try:
         fast_mr.do_mr()
@@ -210,4 +210,3 @@ if __name__ == '__main__':
         fast_mr._log('*** MR: %s ***' % str(e))
         traceback.print_exc(file = open('fast_mr.error', 'w'))
         sys.exit(1)
-

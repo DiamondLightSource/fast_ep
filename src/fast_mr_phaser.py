@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #
 # fast_ep_shelxd ->
-# 
+#
 # code to run shelxd and manage the jobs - this will be called from within
 # a multiprocess task so life is easier if the input is provided in the form
-# of a dictionary with the name of the "problem" we're working on and the 
-# number of reflections to make room for. 
+# of a dictionary with the name of the "problem" we're working on and the
+# number of reflections to make room for.
 
 import os
 import sys
@@ -28,6 +28,5 @@ def run_phaser_cluster(wd_commands):
 
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
-            
-    return
 
+    return

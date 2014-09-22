@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 #
 # fast_ep_shelxd ->
-# 
+#
 # code to run shelxd and manage the jobs - this will be called from within
 # a multiprocess task so life is easier if the input is provided in the form
-# of a dictionary with the name of the "problem" we're working on and the 
-# number of reflections to make room for. 
+# of a dictionary with the name of the "problem" we're working on and the
+# number of reflections to make room for.
 
 import os
 import sys
@@ -23,7 +23,7 @@ from run_job import run_job, run_job_cluster, is_cluster_job_finished
 
 def run_shelxd_cluster(_settings):
     '''Run shelxd_mp on cluster with settings given in dictionary, containing:
-    
+
     nrefl = 1 + floor(nref / 100000) - space to allocate
     ncpu - number of cpus to use
     wd - working directory'''
@@ -38,12 +38,12 @@ def run_shelxd_cluster(_settings):
 
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
-            
+
     return
 
 def run_shelxd_local(_settings):
     '''Run shelxd_mp locally settings given in dictionary, containing:
-    
+
     nrefl = 1 + floor(nref / 100000) - space to allocate
     ncpu - number of cpus to use
     wd - working directory'''
@@ -60,24 +60,24 @@ def run_shelxd_local(_settings):
     return
 
 def analyse_res(_res):
-    
+
     try:
         cc = float(_res[0].split()[5])
     except (ValueError, IndexError):
         cc = float('nan')
-    
+
     try:
         cc_weak = float(_res[0].split()[7])
     except (ValueError, IndexError):
         cc_weak = float('nan')
-    
+
     try:
         cfom = float(_res[0].split()[9])
     except (ValueError, IndexError):
         cfom = float('nan')
-    
+
     # estimate real # sites - as drop below 30% relative occupancy
-    
+
     nsites_real = 0
 
     try:
@@ -99,11 +99,13 @@ def happy_shelxd_log(_shelxd_lst_file):
             return False
 
     best_cfom = 0.0
-    
+
     # columns can get merged in output, so watch for that
 
     for record in open(_shelxd_lst_file):
-        if record.startswith(' Try'):                
+        if '*****' in record:
+            continue
+        if record.startswith(' Try'):
             best_cfom_token = record.replace(',', ' ').split()[-3]
             best_cfom = float(best_cfom_token.replace('best', ''))
 
