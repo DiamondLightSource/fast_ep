@@ -89,12 +89,20 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
                                          '-colano', '"/*/*/[I(+),SIGI(+),I(-),SIGI(-)]"']),
                                          [], [])
     open('ctruncate.log', 'w').write(''.join(ctruncate_output))
+
+    maximum_resolution = 100.0
     
     for record in ctruncate_output:
+        if 'Maximum resolution =' in record:
+            maximum_resolution = float(record.split()[-2])
         if "anomalous limit (deltaI/sig)" in record:
             rlimit = float(record.split()[-2])
             if not isinf(rlimit) and not isnan(rlimit):
-                return [rlimit - 0.2, rlimit, rlimit + 0.2]
+                min_limit = rlimit - 0.2
+                if min_limit < maximum_resolution:
+                    min_limit = maximum_resolution
+            
+                return [min_limit, rlimit, rlimit + 0.2]
     return None
 
 def autosharp(nres, user, wavelength, atom, nsites, hklin):
