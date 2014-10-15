@@ -73,7 +73,7 @@ def ctruncate_anomalous_signal(hklin):
 
 Use
 
-      anomalous limit (deltaI/sig) > 1.3 : 2.1 A
+      measurability limit (Nanon/Nov) > 5% : 1.8 A
 
       + / - 0.2 A
 
@@ -95,7 +95,7 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
     for record in ctruncate_output:
         if 'Maximum resolution =' in record:
             maximum_resolution = float(record.split()[-2])
-        if "anomalous limit (deltaI/sig)" in record:
+        if "measurability limit (Nanon/Nov)" in record:
             rlimit = float(record.split()[-2])
             if not isinf(rlimit) and not isnan(rlimit):
                 min_limit = rlimit - 0.2
