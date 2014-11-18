@@ -9,4 +9,3 @@ def pdb_file_nres(file_name):
 if __name__ == '__main__':
     import sys
     print pdb_file_nres(sys.argv[1])
-                        

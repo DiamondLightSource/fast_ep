@@ -655,6 +655,19 @@ class Fast_ep:
         # working directory, before converting to mtz format for inspection with
         # e.g. coot.
 
+        # FIXME in here map correct site file to ASU
+
+        from fast_ep_helpers import map_sites_to_asu
+        if best_hand == 'original':
+            map_sites_to_asu(self._best_spacegroup,
+                             os.path.join(wd, 'sad_fa.pdb'),
+                             os.path.join(self._wd, 'sites.pdb'))
+        else:
+            map_sites_to_asu(self._best_spacegroup,
+                             os.path.join(wd, 'sad_fa.pdb'),
+                             os.path.join(self._wd, 'sites.pdb'),
+                             invert=True)
+
         if best_hand == 'original':
             for ending in ['phs', 'pha', 'lst', 'hat']:
                 shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),

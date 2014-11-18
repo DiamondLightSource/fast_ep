@@ -185,6 +185,41 @@ def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
 
     return
 
+def map_sites_to_asu(spacegroup,
+                     pdb_in,
+                     pdb_out,
+                     invert=False):
+    '''Map sites to asu of input spacegroup (as sites from shelxd claim
+    P1 in CRYST1 record) inverting if necessary. N.B. if inverting sites
+    also need to invert spacegroup.'''
+
+    from cctbx.sgtbx import space_group, space_group_symbols
+    from cctbx.crystal import symmetry, direct_space_asu
+    from iotbx.pdb import hierarchy
+    from scitbx.array_family import flex
+
+    sg = space_group(space_group_symbols(spacegroup).hall())
+    coords = hierarchy.input(file_name=pdb_in)
+    cs = coords.crystal_symmetry()
+    uc = cs.unit_cell()
+    cs2 = symmetry(unit_cell=uc, space_group=sg)
+    xs = coords.xray_structure_simple().customized_copy(crystal_symmetry=cs2)
+
+    if invert:
+        xs = xs.change_hand()
+
+    am = xs.crystal_symmetry().asu_mappings(0.0)
+    xyz = xs.sites_cart()
+    am.process_sites_cart(xyz)
+    xyz = flex.vec3_double()
+    for m in am.mappings():
+        xyz.append(m[0].mapped_site())
+    xs.set_sites_cart(xyz)
+
+    open(pdb_out, 'w').write(xs.as_pdb_file())
+
+    return
+
 if __name__ == '__main__':
 
     print autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt')

@@ -31,7 +31,7 @@ def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
     import datetime
     time_stamp = '%4d-%02d-%02d %02d:%02d:%02d' % tuple(datetime.datetime.now(
         ).timetuple()[:6])
-    
+
     open(filename, 'w').write(
         open(xml_template, 'r').read().format(
             commandline = full_command_line,
@@ -63,7 +63,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
             done = True
             continue
         total_bins += 1
-        
+
     for bin_number in xrange(total_bins):
         bin_number_name = str(bin_number).zfill(2)
         resolution_low = float(xml_results['RESOLUTION_LOW' + bin_number_name])
@@ -75,7 +75,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
           fom == None or mapcc == None or nreflections == None:
             raise RuntimeError, "One of the fields is empty."
         all_phs_stat_fom += open(fom_template,'r').read().format(
-                bin_number = bin_number + 1, 
+                bin_number = bin_number + 1,
                 number_bins = total_bins,
                 bin_low_res = resolution_low,
                 bin_high_res = resolution_high,
@@ -92,7 +92,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
 
 def xmlfile2json(filename):
     '''Parse an ISpyB XML file into a JSON formatted string'''
-    
+
     from lxml import etree
     tree = etree.parse(filename)
     xml_dict = __node2json(tree.getroot())
@@ -109,7 +109,7 @@ def __node2json(node):
                     node_dict[child.tag] = [node_dict[child.tag], __node2json(child)]
             else:
                 node_dict[child.tag] = __node2json(child)
-        
+
         if node_dict:
             return node_dict
         return None
