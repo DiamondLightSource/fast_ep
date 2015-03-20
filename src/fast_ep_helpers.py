@@ -200,7 +200,7 @@ def map_sites_to_asu(spacegroup,
 
     sg = space_group(space_group_symbols(spacegroup).hall())
     coords = hierarchy.input(file_name=pdb_in)
-    cs = coords.crystal_symmetry()
+    cs = coords.input.crystal_symmetry()
     uc = cs.unit_cell()
     cs2 = symmetry(unit_cell=uc, space_group=sg)
     xs = coords.xray_structure_simple().customized_copy(crystal_symmetry=cs2)
