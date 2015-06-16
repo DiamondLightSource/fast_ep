@@ -22,7 +22,7 @@ if not fast_ep_lib in sys.path:
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 
 def run_shelxd_cluster(_settings):
-    '''Run shelxd_mp on cluster with settings given in dictionary, containing:
+    '''Run shelxd on cluster with settings given in dictionary, containing:
 
     nrefl = 1 + floor(nref / 100000) - space to allocate
     ncpu - number of cpus to use
@@ -33,7 +33,7 @@ def run_shelxd_cluster(_settings):
     wd = _settings['wd']
 
     job_id = run_job_cluster(
-        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
+        'shelxd', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
         [], wd, ncpu, timeout = 600)
 
     while not is_cluster_job_finished(job_id):
@@ -42,7 +42,7 @@ def run_shelxd_cluster(_settings):
     return
 
 def run_shelxd_local(_settings):
-    '''Run shelxd_mp locally settings given in dictionary, containing:
+    '''Run shelxd locally settings given in dictionary, containing:
 
     nrefl = 1 + floor(nref / 100000) - space to allocate
     ncpu - number of cpus to use
@@ -53,7 +53,7 @@ def run_shelxd_local(_settings):
     wd = _settings['wd']
 
     job_output = run_job(
-        'shelxd_mp', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
+        'shelxd', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu], [], wd)
 
     open(os.path.join(wd, 'shelxd.log'), 'w').write(''.join(job_output))
 
