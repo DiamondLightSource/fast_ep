@@ -41,9 +41,9 @@ from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
-from fast_ep_shelxd import run_shelxd_cluster, run_shelxd_local, analyse_res, \
+from fast_ep_shelxd import run_shelxd_drmaa, run_shelxd_local, analyse_res, \
      happy_shelxd_log
-from fast_ep_shelxe import run_shelxe_cluster, run_shelxe_local
+from fast_ep_shelxe import run_shelxe_drmaa, run_shelxe_local
 from fast_ep_helpers import ctruncate_anomalous_signal
 
 def useful_number_sites(_cell, _pointgroup):
@@ -439,11 +439,10 @@ class Fast_ep:
 
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
 
-        pool = Pool(min(njobs, len(jobs)))
-
         if cluster:
-            pool.map(run_shelxd_cluster, jobs)
+            run_shelxd_drmaa(njobs, jobs)
         else:
+            pool = Pool(min(njobs, len(jobs)))
             pool.map(run_shelxd_local, jobs)
 
         # now gather up all of the results, find the one with best cfom
@@ -576,11 +575,11 @@ class Fast_ep:
 
         self._log('Running %d x shelxe jobs' % len(jobs))
 
-        pool = Pool(min(njobs * ncpu, len(jobs)))
 
         if cluster:
-            pool.map(run_shelxe_cluster, jobs)
+            run_shelxe_drmaa(njobs, jobs)
         else:
+            pool = Pool(min(njobs * ncpu, len(jobs)))
             pool.map(run_shelxe_local, jobs)
 
         results = { }
