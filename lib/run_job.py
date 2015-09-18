@@ -121,3 +121,47 @@ def is_cluster_job_finished(job_id):
             return False
 
     return True
+
+def setup_job_drmaa(job, executable, arguments = [], stdin = [],
+                    working_directory = None, ncpu = 1, timeout = None):
+    '''Generate a script to run a program with some command-line arguments and 
+    setup cluster job for submission using DRMAA API.'''
+
+    if working_directory is None:
+        working_directory = os.getcwd()
+
+    rs = random_string()
+    script_path = os.path.join(working_directory, 'FEP_%s.sh' % rs)
+    with open(script_path, 'w') as script:
+
+        script.write('#!/bin/bash\n')
+
+        command_line = '%s' % executable
+        for arg in arguments:
+            command_line += ' "%s"' % arg
+
+        if stdin:
+            script.write('%s << eof\n' % command_line)
+            for record in stdin:
+                script.write('%s\n' % record)
+            script.write('eof\n')
+        else:
+            script.write('%s\n' % command_line)
+
+    job.jobName = 'FEP_%s.sh' % rs
+    job.remoteCommand = 'sh'
+    job.workingDirectory = working_directory
+    job.args = [script_path]
+
+    qsub_args = ['-V',]
+    if timeout:
+        qsub_args += ['-l', 'h_rt=%s' % timeout]
+    if ncpu > 1:
+        qsub_args += ['-pe', 'smp', str(ncpu)]
+
+    job.nativeSpecification = ' '.join(qsub_args)
+
+    if os.environ.get('USER', '') == 'gda':
+        job.jobCategory = 'high'
+    else:
+        job.jobCategory = 'medium'

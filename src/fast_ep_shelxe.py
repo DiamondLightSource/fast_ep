@@ -18,7 +18,7 @@ fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
-from run_job import run_job, run_job_cluster, is_cluster_job_finished
+from run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
 
 def run_shelxe_cluster(_settings):
     '''Run shelxe on cluster with settings given in dictionary, containing:
@@ -45,6 +45,44 @@ def run_shelxe_cluster(_settings):
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
 
+    return
+
+def run_shelxe_drmaa(njobs, job_settings):
+    '''Run shelxe on cluster with settings given in dictionary, containing:
+
+    nsite - number of sites
+    solv - solvent fraction
+    hand - original or inverted
+    wd - working directory'''
+
+    import drmaa
+    with drmaa.Session() as session:
+
+        job = session.createJobTemplate()
+
+        batches = range(0, len(job_settings), njobs)
+        for idx in batches:
+            jobs = []
+            for _settings in job_settings[idx:idx+njobs]:
+
+
+                nsite = _settings['nsite']
+                solv = _settings['solv']
+                hand = _settings['hand']
+                wd = _settings['wd']
+
+                if hand == 'original':
+                    setup_job_drmaa(job,
+                                    'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+                                    '-s%f' % solv, '-m20'], [], wd, 1, timeout = 600)
+                else:
+                    setup_job_drmaa(job,
+                                    'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+                                    '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
+
+                jobs.append(session.runJob(job))
+            session.synchronize(jobs, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
+        session.deleteJobTemplate(job)
     return
 
 def run_shelxe_local(_settings):

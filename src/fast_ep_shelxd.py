@@ -19,7 +19,7 @@ fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
-from run_job import run_job, run_job_cluster, is_cluster_job_finished
+from run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
 
 def run_shelxd_cluster(_settings):
     '''Run shelxd on cluster with settings given in dictionary, containing:
@@ -39,6 +39,35 @@ def run_shelxd_cluster(_settings):
     while not is_cluster_job_finished(job_id):
         time.sleep(1)
 
+    return
+
+def run_shelxd_drmaa(njobs, job_settings):
+    '''Run shelxd on cluster with settings given in dictionary, containing:
+
+    nrefl = 1 + floor(nref / 100000) - space to allocate
+    ncpu - number of cpus to use
+    wd - working directory'''
+
+    import drmaa
+    with drmaa.Session() as session:
+
+        job = session.createJobTemplate()
+
+        batches = range(0, len(job_settings), njobs)
+        for idx in batches:
+            jobs = []
+            for _settings in job_settings[idx:idx+njobs]:
+
+                nrefl = _settings['nrefl']
+                ncpu = _settings['ncpu']
+                wd = _settings['wd']
+
+                setup_job_drmaa(job,
+                                'shelxd', ['-L%d' % nrefl, 'sad_fa', '-t%d' % ncpu],
+                                [], wd, ncpu, timeout = 600)
+                jobs.append(session.runJob(job))
+            session.synchronize(jobs, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
+        session.deleteJobTemplate(job)
     return
 
 def run_shelxd_local(_settings):
