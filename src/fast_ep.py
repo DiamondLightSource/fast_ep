@@ -41,10 +41,9 @@ from number_sites_estimate import number_sites_estimate, \
      number_residues_estimate
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
-from fast_ep_shelxd import run_shelxd_drmaa, run_shelxd_local, analyse_res, \
+from fast_ep_shelxd import run_shelxd_drmaa_array, run_shelxd_local, analyse_res, \
      happy_shelxd_log
-from fast_ep_shelxe import run_shelxe_drmaa, run_shelxe_local
-from fast_ep_helpers import ctruncate_anomalous_signal
+from fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local
 
 def useful_number_sites(_cell, _pointgroup):
     nha = number_sites_estimate(_cell, _pointgroup)
@@ -311,8 +310,6 @@ class Fast_ep:
         else:
             self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
 
-        self._ano_rlimits = ctruncate_anomalous_signal(self._hklin)
-
         spacegroup = self._spacegroups[0]
         nsite = self._nsites[0]
         ntry = self._ntry
@@ -374,13 +371,9 @@ class Fast_ep:
             self._log('%5.2f  %6.2f  %6.2f  %5.2f' %
                       (table['dmin'][j], table['isig'][j],
                        table['comp'][j], table['dsig'][j]))
-            if not self._ano_rlimits and table['dsig'][j] < 0.8:
-                rlimit = table['dmin'][max(0, j - 1)]
-                self._ano_rlimits =  [rlimit - 0.2, rlimit, rlimit + 0.2]
 
-        if not self._ano_rlimits:
-            rlimit = self._data.resolution_range()[1]
-            self._ano_rlimits =  [rlimit, rlimit + 0.25, rlimit + 0.5]
+        dmin = self._data.resolution_range()[1]
+        self._ano_rlimits =  [dmin, dmin + 0.25, dmin + 0.5]
 
         self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
 
@@ -440,7 +433,7 @@ class Fast_ep:
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
 
         if cluster:
-            run_shelxd_drmaa(njobs, jobs)
+            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs)
         else:
             pool = Pool(min(njobs, len(jobs)))
             pool.map(run_shelxd_local, jobs)
@@ -577,7 +570,7 @@ class Fast_ep:
 
 
         if cluster:
-            run_shelxe_drmaa(njobs, jobs)
+            run_shelxe_drmaa_array(self._wd, njobs, jobs)
         else:
             pool = Pool(min(njobs * ncpu, len(jobs)))
             pool.map(run_shelxe_local, jobs)

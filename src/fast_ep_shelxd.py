@@ -70,6 +70,51 @@ def run_shelxd_drmaa(njobs, job_settings):
         session.deleteJobTemplate(job)
     return
 
+
+def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings):
+    '''Run shelxd on cluster with settings given in dictionary, containing:
+
+    nrefl = 1 + floor(nref / 100000) - space to allocate
+    ncpu - number of cpus to use
+    wd - working directory'''
+
+    script_path = os.path.join(wd, 'shelxd_batch.sh')
+    with open(script_path, 'w') as script:
+
+        script.write('#!/bin/bash\n')
+
+        for idx, _settings in enumerate(job_settings, start=1):
+            script.write('WORKING_DIR_{idx}={wd}\n'.format(idx=idx, wd= _settings['wd']))
+
+        script.write('TASK_WORKING_DIR=WORKING_DIR_${SGE_TASK_ID}\n')
+        script.write('cd ${!TASK_WORKING_DIR}\n')
+        script.write('shelxd -L{nrefl} sad_fa -t{ncpu}\n'.format(idx=idx,
+                                                                 nrefl=nrefl,
+                                                                 ncpu=ncpu))
+
+    import drmaa
+    with drmaa.Session() as session:
+        job = session.createJobTemplate()
+        job.jobName = 'FEP_shelxd'
+        job.workingDirectory = wd
+        job.remoteCommand = 'sh'
+        args = [script_path,]
+        job.args = args
+
+        if os.environ.get('USER', '') == 'gda':
+            job.jobCategory = 'high'
+        else:
+            job.jobCategory = 'medium'
+
+        job.nativeSpecification = '-V -l h_rt={timeout} -pe smp {ncpu} -tc {njobs}'.format(timeout=600,
+                                                                                           njobs=njobs,
+                                                                                           ncpu=ncpu)
+
+        job_ids = session.runBulkJobs(job, 1, len(job_settings), 1)
+        session.synchronize(job_ids, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
+        session.deleteJobTemplate(job)
+
+
 def run_shelxd_local(_settings):
     '''Run shelxd locally settings given in dictionary, containing:
 
