@@ -90,19 +90,20 @@ ctruncate -mtzin ../AUTOMATIC_DEFAULT_scaled.mtz -mtzout truncated.mtz -colano '
                                          [], [])
     open('ctruncate.log', 'w').write(''.join(ctruncate_output))
 
-    maximum_resolution = 100.0
+    maximum_resolution = float('nan')
+    rlimit = float('nan')
 
     for record in ctruncate_output:
         if 'Maximum resolution =' in record:
             maximum_resolution = float(record.split()[-2])
         if "measurability limit (Nanon/Nov)" in record:
             rlimit = float(record.split()[-2])
-            if not isinf(rlimit) and not isnan(rlimit):
-                min_limit = rlimit - 0.2
-                if min_limit < maximum_resolution:
-                    min_limit = maximum_resolution
+            break
 
-                return [min_limit, rlimit, rlimit + 0.2]
+    if not isinf(rlimit) and not isnan(rlimit) and \
+        not isinf(maximum_resolution) and not isnan(maximum_resolution):
+        return [max(maximum_resolution, rlimit - 0.2), rlimit, rlimit + 0.2]
+
     return None
 
 def autosharp(nres, user, wavelength, atom, nsites, hklin):
