@@ -130,7 +130,7 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
         else:
             job.jobCategory = 'medium'
 
-        job.nativeSpecification = '-V -l h_rt={timeout} -tc {njobs}'.format(timeout=600,
+        job.nativeSpecification = '-V -l h_rt={timeout} -tc {njobs}  -o FEP_shelxe.out -e FEP_shelxe.err'.format(timeout=600,
                                                                             njobs=njobs)
 
         job_ids = session.runBulkJobs(job, 1, len(job_settings), 1)
