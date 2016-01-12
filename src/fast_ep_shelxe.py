@@ -125,7 +125,7 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
         args = [script_path,]
         job.args = args
 
-        if os.environ.get('USER', '') == 'gda':
+        if os.environ.get('USER', '') == 'gda2':
             job.jobCategory = 'high'
         else:
             job.jobCategory = 'medium'

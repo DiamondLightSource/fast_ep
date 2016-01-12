@@ -85,7 +85,7 @@ def run_job_cluster(executable, arguments = [], stdin = [],
     else:
         timeout_tokens = []
 
-    if os.environ.get('USER', '') == 'gda':
+    if os.environ.get('USER', '') == 'gda2':
         queue = 'high.q'
     else:
         queue = 'medium.q'
@@ -161,7 +161,7 @@ def setup_job_drmaa(job, executable, arguments = [], stdin = [],
 
     job.nativeSpecification = ' '.join(qsub_args)
 
-    if os.environ.get('USER', '') == 'gda':
+    if os.environ.get('USER', '') == 'gda2':
         job.jobCategory = 'high'
     else:
         job.jobCategory = 'medium'
