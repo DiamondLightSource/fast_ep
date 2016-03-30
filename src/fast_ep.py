@@ -702,12 +702,14 @@ class Fast_ep:
         else:
             open('sad.pdb', 'w').write(xs.as_pdb_file())
 
-        run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
-                                '-colin', 'F FOM PHI SIGF',
-                                '-cell', '%f %f %f %f %f %f' % self._unit_cell,
-                                '-spacegroup',
-                                spacegroup_full(self._best_spacegroup)],
+        o = run_job('convert2mtz', ['-hklin', 'sad.phs', '-mtzout', 'sad.mtz',
+                                   '-colin', 'F FOM PHI SIGF',
+                                   '-cell', '%f %f %f %f %f %f' % self._unit_cell,
+                                   '-spacegroup',
+                                   spacegroup_full(self._best_spacegroup)],
             [], self._wd)
+
+        open('convert2mtz.log', 'w').write('\n'.join(o))
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))

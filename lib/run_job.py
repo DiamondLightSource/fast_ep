@@ -124,7 +124,7 @@ def is_cluster_job_finished(job_id):
 
 def setup_job_drmaa(job, executable, arguments = [], stdin = [],
                     working_directory = None, ncpu = 1, timeout = None):
-    '''Generate a script to run a program with some command-line arguments and 
+    '''Generate a script to run a program with some command-line arguments and
     setup cluster job for submission using DRMAA API.'''
 
     if working_directory is None:
