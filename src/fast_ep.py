@@ -413,7 +413,7 @@ class Fast_ep:
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
-                    wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
+                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.1f" % rlimit)
                     if not os.path.exists(wd):
                         os.makedirs(wd)
 
@@ -453,7 +453,7 @@ class Fast_ep:
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
-                    wd = os.path.join(self._wd, spacegroup, str(nsite), "%.1f" % rlimit)
+                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.1f" % rlimit)
 
                     shelxd_log = os.path.join(wd, 'sad_fa.lst')
 
@@ -521,7 +521,7 @@ class Fast_ep:
 
         # copy back result files
 
-        best = os.path.join(self._wd, best_spacegroup, str(best_nsite), "%.1f" % best_ano_rlimit)
+        best = os.path.join(self._wd, best_spacegroup.replace(':', '-'), str(best_nsite), "%.1f" % best_ano_rlimit)
 
         endings = ['lst', 'pdb', 'res']
         if self._plot:
