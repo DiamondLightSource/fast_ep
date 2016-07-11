@@ -470,7 +470,7 @@ class Fast_ep:
                         results[(spacegroup, nsite, rlimit)] = (cc, cc_weak, cfom,
                                                         nsite_real)
 
-                        if cfom > best_cfom:
+                        if cfom > best_cfom and nsite_real > 0:
                             best_cfom = cfom
                             best_cc = cc
                             best_ccweak = cc_weak
