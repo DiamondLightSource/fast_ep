@@ -88,7 +88,7 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout):
 
         script.write('TASK_WORKING_DIR=WORKING_DIR_${SGE_TASK_ID}\n')
         script.write('cd ${!TASK_WORKING_DIR}\n')
-        script.write('shelxd -L{nrefl} sad_fa -t{ncpu} > ${!TASK_WORKING_DIR}/FEP_shelxd.out  2> ${!TASK_WORKING_DIR}/FEP_shelxd.err\n'.format(idx=idx,
+        script.write('shelxd -L{nrefl} sad_fa -t{ncpu} > ${{!TASK_WORKING_DIR}}/FEP_shelxd.out  2> ${{!TASK_WORKING_DIR}}/FEP_shelxd.err\n'.format(idx=idx,
                                                                  nrefl=nrefl,
                                                                  ncpu=ncpu))
 
