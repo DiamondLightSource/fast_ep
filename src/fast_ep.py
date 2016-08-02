@@ -396,6 +396,7 @@ class Fast_ep:
         cluster = self._cluster
         njobs = self._machines
         ncpu = self._cpu
+        timeout = max(600, self._ntry)
 
         # set up N x M shelxd jobs
 
@@ -433,7 +434,7 @@ class Fast_ep:
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
 
         if cluster:
-            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs)
+            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout)
         else:
             pool = Pool(min(njobs, len(jobs)))
             pool.map(run_shelxd_local, jobs)

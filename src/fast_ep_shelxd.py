@@ -71,7 +71,7 @@ def run_shelxd_drmaa(njobs, job_settings):
     return
 
 
-def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings):
+def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout):
     '''Run shelxd on cluster with settings given in dictionary, containing:
 
     nrefl = 1 + floor(nref / 100000) - space to allocate
@@ -106,7 +106,7 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings):
         else:
             job.jobCategory = 'medium'
 
-        job.nativeSpecification = '-V -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o FEP_shelxd.out -e FEP_shelxd.err'.format(timeout=600,
+        job.nativeSpecification = '-V -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o FEP_shelxd.out -e FEP_shelxd.err'.format(timeout=timeout,
                                                                                            njobs=njobs,
                                                                                            ncpu=ncpu)
 
