@@ -691,8 +691,12 @@ class Fast_ep:
                 if 'residues left after pruning' in record:
                     self._nres_trace = int(record.split()[0])
             self._log('Traced:       %d' % self._nres_trace)
-            shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
-                            os.path.join(self._wd, 'sad_trace.pdb'))
+            if not best_hand == 'original':
+                shutil.copyfile(os.path.join(self._wd, 'sad_i.pdb'),
+                                os.path.join(self._wd, 'sad_trace.pdb'))
+            else:
+                shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
+                                os.path.join(self._wd, 'sad_trace.pdb'))
 
         # convert sites to pdb, inverting if needed
 
