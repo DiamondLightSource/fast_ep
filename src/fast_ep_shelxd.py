@@ -10,6 +10,10 @@
 import os
 import sys
 import time
+import scipy.stats
+import numpy
+import iotbx.pdb
+from iotbx.shelx import hklf, crystal_symmetry_from_ins
 
 if not 'FAST_EP_ROOT' in os.environ:
     raise RuntimeError, 'FAST_EP_ROOT not set'
@@ -20,6 +24,7 @@ if not fast_ep_lib in sys.path:
     sys.path.append(fast_ep_lib)
 
 from run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
+
 
 def run_shelxd_cluster(_settings):
     '''Run shelxd on cluster with settings given in dictionary, containing:
@@ -40,6 +45,7 @@ def run_shelxd_cluster(_settings):
         time.sleep(1)
 
     return
+
 
 def run_shelxd_drmaa(njobs, job_settings):
     '''Run shelxd on cluster with settings given in dictionary, containing:
@@ -133,6 +139,7 @@ def run_shelxd_local(_settings):
 
     return
 
+
 def analyse_res(_res):
 
     try:
@@ -165,6 +172,7 @@ def analyse_res(_res):
 
     return cc, cc_weak, cfom, nsites_real
 
+
 def happy_shelxd_log(_shelxd_lst_file):
     for record in open(_shelxd_lst_file):
         if '** NO SUITABLE PATTERSON VECTORS FOUND **' in record:
@@ -187,3 +195,90 @@ def happy_shelxd_log(_shelxd_lst_file):
         return False
 
     return True
+
+
+def stats_shelxd_log(_shelxd_lst_file):
+    '''Compute statistics values for CCall/weak and CFOM data'''
+    cc = []
+    cc_weak = []
+    cfom = []
+    cc_set = set([])
+    cc_weak_set = set([])
+    cfom_set = set([])
+    for record in open(_shelxd_lst_file):
+        if record.startswith(' Try'):
+            try:
+                fields = dict(zip(['try', 'cpu', 'cc', 'cfom', 'best', 'patfom'], record.split(',')))
+                cc.append(float(fields['cc'].split()[-3]))
+                cc_weak.append(float(fields['cc'].split()[-1]))
+                cfom.append(float(fields['cfom'].split()[-1]))
+                cc_set.add(fields['cc'].split()[-3])
+                cc_weak_set.add(fields['cc'].split()[-1])
+                cfom_set.add(fields['cfom'].split()[-1])
+            except:
+                continue
+    res = []
+    for vals, st in [(cc, cc_set),
+                     (cc_weak, cc_weak_set),
+                     (cfom, cfom_set)]:
+        # Check if there are too many duplicate values
+        if len(st) < 10:
+            res.append((numpy.NaN, numpy.NaN))
+            continue
+
+        _, pval = scipy.stats.shapiro(vals)
+        percel = numpy.percentile(vals, 75)
+        quant = filter(lambda x: x < percel, vals)
+        try:
+            mx = numpy.max(vals)
+            md = numpy.mean(quant)
+            sig = numpy.std(quant)
+            
+            # Avoid SegFault when sigma==0
+            if len(quant) > 2 and sig > 0:
+                smax = numpy.divide(mx - md, sig)
+                res.append((smax, pval))
+            else:
+                res.append((numpy.NaN, numpy.NaN))
+        except:
+            res.append((numpy.NaN, numpy.NaN))
+
+    return res
+
+
+def shelxd_substructure_ecalc(pdb_sub, fa_ins, d_min):
+    '''Calculate E-values for heavy atom substructure'''
+
+    pdb_obj =  iotbx.pdb.hierarchy.input(file_name=pdb_sub)
+    c = crystal_symmetry_from_ins.extract_from(file_name=fa_ins)
+    structure = pdb_obj.xray_structure_simple(crystal_symmetry=c)
+    fcalc = structure.structure_factors(anomalous_flag=False, d_min=d_min).f_calc().amplitudes()
+    fcalc.setup_binner(n_bins=10)
+
+    ecalc = fcalc.quasi_normalize_structure_factors()
+    ecalc.setup_binner(n_bins=10)
+    return ecalc
+
+
+def shelxd_read_hklf(fa_file, fa_ins, d_min):
+    '''Normalise Fa values output by SHELX'''
+
+    fa_data = hklf.reader(file_name=fa_file)
+    c = crystal_symmetry_from_ins.extract_from(file_name=fa_ins)
+
+    fsigf_all = fa_data.as_miller_arrays(crystal_symmetry=c)[0]
+    fsigf = fsigf_all.select(fsigf_all.d_spacings().data()>d_min)
+    fsigf.setup_binner(n_bins=10)
+
+    ea = fsigf.quasi_normalize_structure_factors()
+    ea.setup_binner(n_bins=10)
+    return ea
+
+
+def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min):
+    '''Calculate correlation between Ea and Ecalc values'''
+
+    ecalc = shelxd_substructure_ecalc(pdb_sub, fa_ins, d_min)
+    ea = shelxd_read_hklf(fa_file, fa_ins, d_min)
+    corr_all = ea.correlation(ecalc, use_binning=False)
+    return 100.*corr_all.coefficient()

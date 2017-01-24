@@ -42,7 +42,7 @@ from number_sites_estimate import number_sites_estimate, \
 from guess_the_atom import guess_the_atom
 from run_job import run_job, run_job_cluster, is_cluster_job_finished
 from fast_ep_shelxd import run_shelxd_drmaa_array, run_shelxd_local, analyse_res, \
-     happy_shelxd_log
+     happy_shelxd_log, shelxd_cc_all
 from fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local
 
 def useful_number_sites(_cell, _pointgroup):
@@ -125,6 +125,8 @@ fast_ep {
     .type = int
   ntry = 200
     .type = int
+  rlims = None
+    .type = floats(value_min=0)
   xml = ''
     .type = str
   plot = False
@@ -166,6 +168,9 @@ fast_ep {
     def get_ntry(self):
         return self._parameters.fast_ep.ntry
 
+    def get_rlims(self):
+        return self._parameters.fast_ep.rlims
+
     def get_xml(self):
         return self._parameters.fast_ep.xml
 
@@ -192,6 +197,7 @@ class Fast_ep:
         self._machines = _parameters.get_machines()
         self._atom = _parameters.get_atom()
         self._ntry = _parameters.get_ntry()
+        self._ano_rlimits = _parameters.get_rlims()
         self._plot = _parameters.get_plot()
         self._trace = _parameters.get_trace()
         self._data = None
@@ -372,8 +378,10 @@ class Fast_ep:
                       (table['dmin'][j], table['isig'][j],
                        table['comp'][j], table['dsig'][j]))
 
-        dmin = self._data.resolution_range()[1]
-        self._ano_rlimits =  [dmin, dmin + 0.25, dmin + 0.5]
+
+        if not self._ano_rlimits:
+            dmin = self._data.resolution_range()[1]
+            self._ano_rlimits =  [dmin, dmin + 0.25, dmin + 0.5]
 
         self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
 
@@ -444,6 +452,7 @@ class Fast_ep:
         best_cfom = 0.0
         best_cc = 0.0
         best_ccweak = 0.0
+        best_norm_cc = 0.0
         best_spacegroup = None
         best_nsite = 0
         best_nsite_real = 0
@@ -467,21 +476,26 @@ class Fast_ep:
                     if happy_shelxd_log(shelxd_log):
                         res = open(os.path.join(wd, 'sad_fa.res')).readlines()
                         cc, cc_weak, cfom, nsite_real = analyse_res(res)
+                        norm_cc = shelxd_cc_all(os.path.join(wd, 'sad_fa.pdb'),
+                                                os.path.join(wd, 'sad_fa.hkl'),
+                                                os.path.join(wd, 'sad_fa.ins'),
+                                                3.0)
 
                         results[(spacegroup, nsite, rlimit)] = (cc, cc_weak, cfom,
-                                                        nsite_real)
+                                                        nsite_real, norm_cc)
 
-                        if cfom > best_cfom and nsite_real > 0:
+                        if norm_cc > best_norm_cc and nsite_real > 0:
                             best_cfom = cfom
                             best_cc = cc
                             best_ccweak = cc_weak
+                            best_norm_cc = norm_cc
                             best_spacegroup = spacegroup
                             best_nsite = nsite
                             best_nsite_real = nsite_real
                             best_ano_rlimit = rlimit
 
                     else:
-                        results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0)
+                        results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0, 0.0)
 
         if not best_spacegroup:
             raise RuntimeError, 'All shelxd jobs failed'
@@ -494,16 +508,28 @@ class Fast_ep:
             else:
                 self._log('Spacegroup: %s' % spacegroup)
 
-            self._log('No.  Res.  CCall  CCweak CFOM  No. found')
+            self._log('No.  Res.  CCres  CCall  CCweak CFOM  No. found')
             for nsite in self._nsites:
+                write_nsite = True
                 for rlimit in self._ano_rlimits:
-                    (cc, cc_weak, cfom, nsite_real) = results[(spacegroup, nsite, rlimit)]
-                    if (spacegroup, nsite, rlimit) == (best_spacegroup, best_nsite, best_ano_rlimit):
-                        self._log('%3d  %.1f  %6.2f %6.2f %6.2f %3d (best)' %
-                            (nsite, rlimit, cc, cc_weak, cfom, nsite_real))
-                    else:
-                        self._log('%3d  %.1f  %6.2f %6.2f %6.2f %3d' %
-                            (nsite, rlimit, cc, cc_weak, cfom, nsite_real))
+                        (cc, cc_weak, cfom, nsite_real, norm_cc) = results[(spacegroup, nsite, rlimit)]
+                        if write_nsite:
+                            log_pattern = '%3d  %.1f  %6.2f %6.2f %6.2f %6.2f %3d'
+                        else:
+                            log_pattern = '     %.1f  %6.2f %6.2f %6.2f %6.2f %3d'
+                        if (spacegroup, nsite, rlimit) == (best_spacegroup, best_nsite, best_ano_rlimit):
+                            log_pattern += ' (best)'
+                        if write_nsite:
+                            self._log(log_pattern % (nsite, rlimit,
+                                                     norm_cc,
+                                                     cc, cc_weak, 
+                                                     cfom, nsite_real))
+                        else:
+                            self._log(log_pattern % (rlimit,
+                                                     norm_cc,
+                                                     cc, cc_weak,
+                                                     cfom, nsite_real))
+                        write_nsite = False
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
@@ -563,8 +589,10 @@ class Fast_ep:
                                 os.path.join(wd, 'sad_fa.%s' % ending))
 
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
+                         'resol':self._best_ano_rlimit,
                          'hand':'original', 'wd':wd})
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
+                         'resol':self._best_ano_rlimit,
                          'hand':'inverted', 'wd':wd})
 
         self._log('Running %d x shelxe jobs' % len(jobs))
@@ -683,7 +711,7 @@ class Fast_ep:
             # rerun shelxe to trace the chain
             self._nres_trace = 0
             arguments = ['sad', 'sad_fa', '-h%d' % self._best_nsite,
-                         '-s%.2f' % best_solvent, '-a3', '-m20']
+                         '-s%.2f' % best_solvent, '-d%.2f' % self._best_ano_rlimit, '-a3', '-m20']
             if not best_hand == 'original':
                 arguments.append('-i')
             output = run_job('shelxe', arguments, [], self._wd)

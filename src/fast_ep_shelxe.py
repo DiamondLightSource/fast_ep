@@ -26,21 +26,23 @@ def run_shelxe_cluster(_settings):
 
     nsite - number of sites
     solv - solvent fraction
+    resol - high resolution limit
     hand - original or inverted
     wd - working directory'''
 
     nsite = _settings['nsite']
     solv = _settings['solv']
     hand = _settings['hand']
+    resol = _settings['resol']
     wd = _settings['wd']
 
     if hand == 'original':
         job_id = run_job_cluster(
-            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-d%f' % resol,
                        '-s%f' % solv, '-m20'], [], wd, 1, timeout = 600)
     else:
         job_id = run_job_cluster(
-            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-d%f' % resol,
                        '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
 
     while not is_cluster_job_finished(job_id):
@@ -54,6 +56,7 @@ def run_shelxe_drmaa(njobs, job_settings):
 
     nsite - number of sites
     solv - solvent fraction
+    resol - high resolution limit
     hand - original or inverted
     wd - working directory'''
 
@@ -71,16 +74,17 @@ def run_shelxe_drmaa(njobs, job_settings):
                 nsite = _settings['nsite']
                 solv = _settings['solv']
                 hand = _settings['hand']
+                resol = _settings['resol']
                 wd = _settings['wd']
 
                 if hand == 'original':
                     setup_job_drmaa(job,
                                     'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                                    '-s%f' % solv, '-m20'], [], wd, 1, timeout = 600)
+                                    '-s%f' % solv, '-d%f' % resol, '-m20'], [], wd, 1, timeout = 600)
                 else:
                     setup_job_drmaa(job,
                                     'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                                    '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
+                                    '-s%f' % solv, '-d%f' % resol, '-m20', '-i'], [], wd, 1, timeout = 600)
 
                 jobs.append(session.runJob(job))
             session.synchronize(jobs, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
@@ -93,6 +97,7 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
 
     nsite - number of sites
     solv - solvent fraction
+    resol - high resolution limit
     hand - original or inverted
     wd - working directory'''
 
@@ -106,9 +111,10 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
             hand = '-i' if _settings['hand'] == 'inverted' else ''
             script.write('WORKING_DIR_{idx}={wd}\n'.format(idx=idx,
                                                            wd= _settings['wd']))
-            script.write('COMMAND_{idx}="shelxe sad sad_fa -h{nsite} -s{solv} -m20 {hand}"\n'.format(idx=idx,
+            script.write('COMMAND_{idx}="shelxe sad sad_fa -h{nsite} -s{solv} -d{resol} -m20 {hand}"\n'.format(idx=idx,
                                                                                                      nsite=_settings['nsite'],
                                                                                                      solv=_settings['solv'],
+                                                                                                     resol=_settings['resol'],
                                                                                                      hand=hand))
 
         script.write('TASK_WORKING_DIR=WORKING_DIR_${SGE_TASK_ID}\n')
@@ -143,19 +149,21 @@ def run_shelxe_local(_settings):
 
     nsite - number of sites
     solv - solvent fraction
+    resol - high resolution limit
     hand - original or inverted
     wd - working directory'''
 
     nsite = _settings['nsite']
     solv = _settings['solv']
     hand = _settings['hand']
+    resol = _settings['resol']
     wd = _settings['wd']
 
     if hand == 'original':
         job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                                        '-s%f' % solv, '-m20'], [], wd)
+                                        '-s%f' % solv, '-d%f' % resol, '-m20'], [], wd)
     else:
         job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
-                                        '-s%f' % solv, '-m20', '-i'], [], wd)
+                                        '-s%f' % solv, '-d%f' % resol, '-m20', '-i'], [], wd)
 
     return
