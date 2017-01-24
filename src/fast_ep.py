@@ -718,13 +718,17 @@ class Fast_ep:
             for record in output:
                 if 'residues left after pruning' in record:
                     self._nres_trace = int(record.split()[0])
-            self._log('Traced:       %d' % self._nres_trace)
-            if not best_hand == 'original':
-                shutil.copyfile(os.path.join(self._wd, 'sad_i.pdb'),
-                                os.path.join(self._wd, 'sad_trace.pdb'))
-            else:
-                shutil.copyfile(os.path.join(self._wd, 'sad.pdb'),
-                                os.path.join(self._wd, 'sad_trace.pdb'))
+            pdb_org = os.path.join(self._wd, 'sad.pdb')
+            pdb_inv = os.path.join(self._wd, 'sad_i.pdb')
+            pdb_final = os.path.join(self._wd, 'sad_trace.pdb')
+            try:
+                if best_hand == 'inverted':
+                    shutil.copyfile(pdb_inv, pdb_final)
+                else:
+                    shutil.copyfile(pdb_org, pdb_final)
+                self._log('Traced:       %d residues' % self._nres_trace)
+            except IOError:
+                self._log('Chain tracing was unsuccessful.')
 
         # convert sites to pdb, inverting if needed
 
