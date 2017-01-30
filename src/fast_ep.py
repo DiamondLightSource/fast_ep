@@ -20,8 +20,10 @@ from multiprocessing import Pool
 
 from iotbx import mtz
 from iotbx import pdb
+from iotbx.reflection_file_reader import any_reflection_file
 from libtbx.phil import parse
 from cctbx.sgtbx import space_group, space_group_symbols
+from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 
@@ -220,45 +222,27 @@ class Fast_ep:
 
         # --- SAD DATA ---
 
-        m = mtz.object(self._hklin)
-        mas = m.as_miller_arrays()
+        reader = any_reflection_file(self._hklin)
 
-        for ma in mas:
-            if not ma.anomalous_flag():
-                continue
-            if str(ma.observation_type()) != 'xray.intensity':
-                continue
-            self._data = ma
-            break
-
-        if not self._data:
-            raise RuntimeError, 'no anomalous intensity data found in %s' % \
-                self._hklin
-
-        # --- NATIVE DATA ---
-
-        if self._native_hklin:
-            mn = mtz.object(self._native_hklin)
-            masn = m.as_miller_arrays()
-
-            for ma in masn:
-                if ma.anomalous_flag():
-                    continue
-                if str(ma.observation_type()) != 'xray.intensity':
-                    continue
-                self._native = ma
-                break
-
-        else:
-            self._native = None
-
-        if not self._data:
+        ma = [m for m in reader.as_miller_arrays(merge_equivalents=True)
+                if type(m.observation_type()) is observation_types.intensity]
+        if not ma:
             raise RuntimeError, 'no intensity data found in %s' % self._hklin
+
+        try:
+            self._data = next(m for m in ma if m.anomalous_flag())
+        except StopIteration:
+            raise RuntimeError, 'no anomalous intensity data found in %s' % self._hklin
+
+        try:
+            self._native = next(m for m in ma if not m.anomalous_flag())
+        except StopIteration:
+            self._native = None
 
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()
 
-        self._nrefl = m.n_reflections()
+        self._nrefl = reader.file_content().n_reflections()
 
         # write out a nice summary of the data set properties and what columns
         # were selected for analysis
@@ -271,7 +255,7 @@ class Fast_ep:
         self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                   self._unit_cell)
         self._log('N try:       %d' % self._ntry)
-        self._log('Pointgroup:  %s' % m.space_group().type().lookup_symbol())
+        self._log('Pointgroup:  %s' % self._data.crystal_symmetry().space_group().type().lookup_symbol())
         self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
 
         self._xml_name = _parameters.get_xml()
@@ -291,8 +275,6 @@ class Fast_ep:
         # Now set up the job - run shelxc, assess anomalous signal, compute
         # possible spacegroup options, generate scalepack format reflection
         # file etc.
-
-        self._data = self._data.apply_scaling(target_max = 1.0e5)
 
         merge_scalepack.write(file_name = 'sad.sca',
                               miller_array = self._data)
@@ -497,9 +479,6 @@ class Fast_ep:
                     else:
                         results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0, 0.0)
 
-        if not best_spacegroup:
-            raise RuntimeError, 'All shelxd jobs failed'
-
         for spacegroup in self._spacegroups:
             if spacegroup == best_spacegroup:
                 self._log('Spacegroup: %s (best)' % spacegroup)
@@ -533,6 +512,9 @@ class Fast_ep:
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
+
+        if not best_spacegroup:
+            raise RuntimeError, 'All shelxd jobs failed'
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
