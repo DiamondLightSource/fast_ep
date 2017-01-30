@@ -246,13 +246,13 @@ def stats_shelxd_log(_shelxd_lst_file):
     return res
 
 
-def shelxd_substructure_ecalc(pdb_sub, fa_ins, d_min):
+def shelxd_substructure_ecalc(pdb_sub, ea, fa_ins, d_min):
     '''Calculate E-values for heavy atom substructure'''
 
     pdb_obj =  iotbx.pdb.hierarchy.input(file_name=pdb_sub)
     c = crystal_symmetry_from_ins.extract_from(file_name=fa_ins)
     structure = pdb_obj.xray_structure_simple(crystal_symmetry=c)
-    fcalc = structure.structure_factors(anomalous_flag=False, d_min=d_min).f_calc().amplitudes()
+    fcalc = ea.structure_factors_from_scatterers(xray_structure=structure, algorithm="direct").f_calc().amplitudes()
     fcalc.setup_binner(n_bins=10)
 
     ecalc = fcalc.quasi_normalize_structure_factors()
@@ -278,7 +278,7 @@ def shelxd_read_hklf(fa_file, fa_ins, d_min):
 def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min):
     '''Calculate correlation between Ea and Ecalc values'''
 
-    ecalc = shelxd_substructure_ecalc(pdb_sub, fa_ins, d_min)
     ea = shelxd_read_hklf(fa_file, fa_ins, d_min)
+    ecalc = shelxd_substructure_ecalc(pdb_sub, ea, fa_ins, d_min)
     corr_all = ea.correlation(ecalc, use_binning=False)
     return 100.*corr_all.coefficient()
