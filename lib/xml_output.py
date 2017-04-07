@@ -42,6 +42,7 @@ def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
             lowres = xml_results['LOWRES'],
             highres = xml_results['HIGHRES'],
             shelxc_spacegroup = xml_results['SHELXC_SPACEGROUP_ID'],
+            substructure_method = xml_results['SUBSTRUCTURE_METHOD'],
             phasing_statistics_fom = all_phs_stat_fom,
             phasing_statistics_mapcc = all_phs_stat_mapcc,
             time_stamp = time_stamp

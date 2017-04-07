@@ -29,7 +29,7 @@
 
 <Phasing>
 <spaceGroupId>{spacegroup_id:d}</spaceGroupId>
-<method>SAD</method>
+<method>shelxe</method>
 <solventContent>{solvent_content:f}</solventContent>
 <enantiomorph>{enantiomorph:d}</enantiomorph>
 <lowRes>{lowres:f}</lowRes>
@@ -44,7 +44,7 @@
 
 <SubstructureDetermination>
 <spaceGroupId>{spacegroup_id:d}</spaceGroupId>
-<method>SAD</method>
+<method>{substructure_method:s}</method>
 <lowRes>{lowres:f}</lowRes>
 <highRes>{highres:f}</highRes>
 </SubstructureDetermination>

@@ -115,7 +115,7 @@ fast_ep {
     .type = int
   cpu = %d
     .type = int
-  sad = 'fast_dp.mtz'
+  data = 'fast_dp.mtz'
     .type = str
   native = None
     .type = str
@@ -152,8 +152,8 @@ fast_ep {
     def get_cpu(self):
         return self._parameters.fast_ep.cpu
 
-    def get_sad(self):
-        return self._parameters.fast_ep.sad
+    def get_data(self):
+        return self._parameters.fast_ep.data
 
     def get_native(self):
         return self._parameters.fast_ep.native
@@ -193,8 +193,9 @@ class Fast_ep:
         the signal to noise and conversion to pseudo-scalepack format of the
         data for input into shelxc, which is used to compute FA values.'''
 
-        self._hklin = _parameters.get_sad()
+        self._hklin = _parameters.get_data()
         self._native_hklin = _parameters.get_native()
+        self._native = None
         self._cpu = _parameters.get_cpu()
         self._machines = _parameters.get_machines()
         self._atom = _parameters.get_atom()
@@ -203,6 +204,9 @@ class Fast_ep:
         self._plot = _parameters.get_plot()
         self._trace = _parameters.get_trace()
         self._data = None
+        self._spacegroups = [_parameters.get_spg(),] if _parameters.get_spg() else None
+        self._nsites = [_parameters.get_nsites(),] if _parameters.get_nsites() else None
+        self._xml_name = _parameters.get_xml()
 
         if self._machines == 1:
             self._cluster = False
@@ -229,104 +233,98 @@ class Fast_ep:
         if not ma:
             raise RuntimeError, 'no intensity data found in %s' % self._hklin
 
-        try:
-            self._data = next(m for m in ma if m.anomalous_flag())
-        except StopIteration:
+        self._all_data = [m for m in ma if m.anomalous_flag()]
+        if not self._all_data:
             raise RuntimeError, 'no anomalous intensity data found in %s' % self._hklin
 
-        try:
-            self._native = next(m for m in ma if not m.anomalous_flag())
-        except StopIteration:
-            self._native = None
-
-        self._pointgroup = self._data.space_group().type().number()
-        self._unit_cell = self._data.unit_cell().parameters()
+        if self._native_hklin:
+            native_reader = any_reflection_file(self._native_hklin)
+            try:
+                self._native = next(m for m in native_reader.as_miller_arrays(merge_equivalents=True)
+                                    if (type(m.observation_type()) is observation_types.intensity and
+                                        not m.anomalous_flag()))
+            except StopIteration:
+                self._native = None
 
         self._nrefl = reader.file_content().n_reflections()
+        self._pointgroup = reader.file_content().space_group_number()
+        self._dmin, self._dmax = reader.file_content().max_min_resolution()
+
+        self._xml_results= {}
+        self._xml_results['LOWRES'] = self._dmin
+        self._xml_results['HIGHRES'] = self._dmax
+
+        return
+
+
+    def fa_values(self):
+
+        self._log('Input:       %s' % self._hklin)
+        self._log('N try:       %d' % self._ntry)
+        dataset_names = ['sad',] if len(self._all_data) == 1 else ['peak', 'infl', 'hrem', 'lrem']
+        if 'sad' in dataset_names:
+            self._xml_results['SUBSTRUCTURE_METHOD'] = 'SAD'
+        else:
+            self._xml_results['SUBSTRUCTURE_METHOD'] = 'MAD'
+        zip_dataset_names = zip(dataset_names, self._all_data)
+        if self._native:
+            zip_dataset_names.append(('nat', self._native))
 
         # write out a nice summary of the data set properties and what columns
         # were selected for analysis
+        for dtname, data in zip_dataset_names:
+            self._log('Dataset:     %s' % dtname)
+            self._log('Columns:     %s' % data.info().label_string())
+            self._unit_cell = data.unit_cell().parameters()
+            self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
+                      self._unit_cell)
+            self._log('Pointgroup:  %s' % data.crystal_symmetry().space_group().type().lookup_symbol())
+            self._log('Resolution:  %.2f - %.2f' % data.resolution_range())
 
-        self._log('Input:       %s' % self._hklin)
-        self._log('Columns:     %s' % self._data.info().label_string())
-        if self._native_hklin:
-            self._log('Native:      %s' % self._native_hklin)
-            self._log('Columns:     %s' % self._native.info().label_string())
-        self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
-                  self._unit_cell)
-        self._log('N try:       %d' % self._ntry)
-        self._log('Pointgroup:  %s' % self._data.crystal_symmetry().space_group().type().lookup_symbol())
-        self._log('Resolution:  %.2f - %.2f' % self._data.resolution_range())
+            self._log('Nrefl:       %d / %d' % (data.size(),
+                                                data.n_bijvoet_pairs() if data.anomalous_flag() else 0))
+            if data.anomalous_flag():
+                self._log('DF/F:        %.3f' % data.anomalous_signal())
 
-        self._xml_name = _parameters.get_xml()
-        self._xml_results= {}
-        self._xml_results['LOWRES'] = self._data.resolution_range()[0]
-        self._xml_results['HIGHRES'] = self._data.resolution_range()[1]
+                differences = data.anomalous_differences()
 
-        self._log('Nrefl:       %d / %d' % (self._nrefl,
-                                            self._data.n_bijvoet_pairs()))
-        self._log('DF/F:        %.3f' % self._data.anomalous_signal())
+                self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                                                 sum(differences.sigmas())))
 
-        differences = self._data.anomalous_differences()
+            # Now set up the job - run shelxc, assess anomalous signal, compute
+            # possible spacegroup options, generate scalepack format reflection
+            # file etc.
 
-        self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
-                                         sum(differences.sigmas())))
-
-        # Now set up the job - run shelxc, assess anomalous signal, compute
-        # possible spacegroup options, generate scalepack format reflection
-        # file etc.
-
-        merge_scalepack.write(file_name = 'sad.sca',
-                              miller_array = self._data)
-
-        if self._native_hklin:
-            merge_scalepack.write(file_name = 'native.sca',
-                                  miller_array = self._native)
+            merge_scalepack.write(file_name = '.'.join([dtname, 'sca']),
+                                  miller_array = data)
 
         # in here run shelxc to generate the ins file (which will need to be
         # modified) and the hkl files, which will need to be copied.
 
-        if _parameters.get_spg():
-            self._spacegroups = [_parameters.get_spg(),]
-        else:
+        if not self._spacegroups:
             self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
 
         self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
 
-        if _parameters.get_nsites():
-            self._nsites = [_parameters.get_nsites(),]
-        else:
+        if not self._nsites:
             self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
 
         spacegroup = self._spacegroups[0]
         nsite = self._nsites[0]
         ntry = self._ntry
 
-        self._xml_results['SHELXC_SPACEGROUP_ID'] = space_group_symbols(
-            spacegroup).number()
+        self._xml_results['SHELXC_SPACEGROUP_ID'] = space_group_symbols(spacegroup).number()
 
-        if self._native_hklin:
-            shelxc_output = run_job(
-                'shelxc', ['sad'],
-                ['sad sad.sca',
-                 'nat native.sca',
-                'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
-                'spag %s' % sanitize_spacegroup(spacegroup),
-                'sfac %s' % string.upper(_parameters.get_atom()),
-                'find %d' % nsite,
-                'mind -3.5',
-                'ntry %d' % ntry])
-
-        else:
-            shelxc_output = run_job(
-                'shelxc', ['sad'],
-                ['sad sad.sca',
-                 'cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
+        shelxc_input_files = ['%s %s.sca' % (v[0],v[0]) for v in zip_dataset_names]
+        shelxc_stdin = ['cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
                  'spag %s' % sanitize_spacegroup(spacegroup),
-                 'sfac %s' % string.upper(_parameters.get_atom()),
+                 'sfac %s' % string.upper(self._atom),
                  'find %d' % nsite,
                  'mind -3.5',
-                 'ntry %d' % ntry])
+                 'ntry %d' % ntry]
+        shelxc_output = run_job('shelxc', ['sad'],
+                                shelxc_input_files +
+                                shelxc_stdin)
 
         # FIXME in here perform some analysis of the shelxc output - how much
         # anomalous signal was reported?
@@ -362,8 +360,7 @@ class Fast_ep:
 
 
         if not self._ano_rlimits:
-            dmin = self._data.resolution_range()[1]
-            self._ano_rlimits =  [dmin, dmin + 0.25, dmin + 0.5]
+            self._ano_rlimits =  [self._dmax, self._dmax + 0.25, self._dmax + 0.5]
 
         self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
 
@@ -778,7 +775,7 @@ class Fast_ep:
                     resolution_number_name = str(resolution_number).zfill(2)
                     k = 'RESOLUTION_LOW' + resolution_number_name
                     if resolution_number == 0:
-                        self._xml_results[k] = self._data.resolution_range()[0]
+                        self._xml_results[k] = self._dmin
                     else:
                         self._xml_results[k] = float(resolution_ranges[
                             resolution_number])
@@ -822,6 +819,13 @@ class Fast_ep:
 
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
+    try:
+        fast_ep.fa_values()
+    except RuntimeError, e:
+        fast_ep._log('*** FA: %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
+        sys.exit(1)
+
     try:
         fast_ep.find_sites()
     except RuntimeError, e:
