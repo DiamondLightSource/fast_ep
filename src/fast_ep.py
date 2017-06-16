@@ -358,6 +358,8 @@ class Fast_ep:
                       (table['dmin'][j], table['isig'][j],
                        table['comp'][j], table['dsig'][j]))
 
+        if self._ano_rlimits == [0]:
+            self._ano_rlimits = [self._dmax]
 
         if not self._ano_rlimits:
             self._ano_rlimits =  [self._dmax, self._dmax + 0.25, self._dmax + 0.5]
@@ -498,7 +500,7 @@ class Fast_ep:
                         if write_nsite:
                             self._log(log_pattern % (nsite, rlimit,
                                                      norm_cc,
-                                                     cc, cc_weak, 
+                                                     cc, cc_weak,
                                                      cfom, nsite_real))
                         else:
                             self._log(log_pattern % (rlimit,

@@ -233,7 +233,7 @@ def stats_shelxd_log(_shelxd_lst_file):
             mx = numpy.max(vals)
             md = numpy.mean(quant)
             sig = numpy.std(quant)
-            
+
             # Avoid SegFault when sigma==0
             if len(quant) > 2 and sig > 0:
                 smax = numpy.divide(mx - md, sig)
