@@ -1,6 +1,14 @@
 import os
 import json
 
+
+def store_string_xml(xml_results, field_values, field_name):
+    '''Format values for writing xml output'''
+    for field_number in xrange(0, len(field_values)):
+        field_number_name = str(field_number).zfill(2)
+        k = field_name + field_number_name
+        xml_results[k] = field_values[field_number]
+
 def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
     '''Write items in the _xml_results into an XML file to be stored in
     ISPyB'''

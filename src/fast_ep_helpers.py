@@ -9,8 +9,10 @@
 
 import os
 from math import isinf, isnan
+from cctbx.sgtbx import space_group, space_group_symbols
 
-from run_job import run_job
+from lib.number_sites_estimate import number_sites_estimate
+from lib.run_job import run_job
 
 _autosharp_file = '''
 # ----------------------------------------
@@ -116,75 +118,6 @@ def autosharp(nres, user, wavelength, atom, nsites, hklin):
         nsites = nsites,
         hklin = hklin)
 
-def plot_shelxd_cc(fa_lst_file, png_file, spacegroup, sites, rlimit):
-    '''Plot cc weak vs. cc from shelxd run.'''
-
-    # first scrape out the cc values
-
-    cc_all = []
-    cc_weak = []
-
-    for record in open(fa_lst_file):
-        if 'Try' in record and 'CC All/Weak' in record:
-            tokens = record.replace(',', ' ').replace('CPU', 'CPU ').replace(
-                'CFOM', 'CFOM ').replace(' /', ' / ').split()
-            cc_all.append(float(tokens[6]))
-            cc_weak.append(float(tokens[8]))
-
-    # now generate plot
-
-    import matplotlib
-    matplotlib.use('Agg')
-    from matplotlib import pyplot
-
-    pyplot.xlabel('CC (all)')
-    pyplot.ylabel('CC (weak)')
-    pyplot.title('Substructure search %d sites in %s at %.1f A resolution' % (sites, spacegroup, rlimit))
-    pyplot.scatter(cc_all, cc_weak, label = 'CC')
-    pyplot.axis([-10, 100, -10, 100])
-    pyplot.legend()
-    pyplot.savefig(png_file)
-    pyplot.close()
-
-    return
-
-def plot_shelxe_contrast(original_lst, other_lst, png_file, solvent):
-    '''Plot contrast vs. cycle number from shelxe.'''
-
-    # first scrape out the contrast values
-
-    contrast_orig = []
-    contrast_other = []
-
-    for record in open(original_lst):
-        if 'Contrast' in record and 'Connect' in record:
-            tokens = record.replace(',', ' ').split()
-            contrast_orig.append(float(tokens[5]))
-
-    for record in open(other_lst):
-        if 'Contrast' in record and 'Connect' in record:
-            tokens = record.replace(',', ' ').split()
-            contrast_other.append(float(tokens[5]))
-
-    cycles = [j + 1 for j in range(len(contrast_orig))]
-
-    # now generate plot
-
-    import matplotlib
-    matplotlib.use('Agg')
-    from matplotlib import pyplot
-
-    pyplot.xlabel('Cycle')
-    pyplot.ylabel('Contrast')
-    pyplot.title('Phasing contrast for solvent fraction %.2f' % solvent)
-    pyplot.plot(cycles, contrast_orig, label = 'Original')
-    pyplot.plot(cycles, contrast_other, label = 'Inverse')
-    pyplot.axis([0, len(contrast_orig), 0, 1.5])
-    pyplot.legend()
-    pyplot.savefig(png_file)
-    pyplot.close()
-
-    return
 
 def map_sites_to_asu(spacegroup,
                      pdb_in,
@@ -194,7 +127,6 @@ def map_sites_to_asu(spacegroup,
     P1 in CRYST1 record) inverting if necessary. N.B. if inverting sites
     also need to invert spacegroup.'''
 
-    from cctbx.sgtbx import space_group, space_group_symbols
     from cctbx.crystal import symmetry, direct_space_asu
     from iotbx.pdb import hierarchy
     from scitbx.array_family import flex
@@ -220,6 +152,48 @@ def map_sites_to_asu(spacegroup,
     open(pdb_out, 'w').write(xs.as_pdb_file())
 
     return
+
+def useful_number_sites(_cell, _pointgroup):
+    nha = number_sites_estimate(_cell, _pointgroup)
+
+    result = []
+
+    for f in [0.25, 0.5, 1.0, 2.0, 4.0]:
+        nha_test = int(round(f * nha))
+        if nha_test and not nha_test in result:
+            result.append(nha_test)
+
+    if len(result) < 3:
+        result = [1, 2, 3]
+
+    return result
+
+def modify_ins_text(_ins_text, _spacegroup, _nsites, _rlimit):
+    '''Update the text in a SHELXD .ins file to handle the correct number
+    of sites and spacegroup symmetry operations.'''
+
+    new_text = []
+
+    symm = [op.as_xyz().upper() for op in
+            space_group(space_group_symbols(_spacegroup).hall()).smx()]
+
+    for record in _ins_text:
+        if 'SYMM' in record:
+            if not symm:
+                continue
+            for op in symm:
+                if op == 'X,Y,Z':
+                    continue
+                new_text.append(('SYMM %s' % op))
+            symm = None
+        elif 'FIND' in record:
+            new_text.append(('FIND %d' % _nsites))
+        elif 'SHEL' in record:
+            new_text.append(('SHEL 999 %.1f' % _rlimit))
+        else:
+            new_text.append(record.strip())
+
+    return new_text
 
 if __name__ == '__main__':
 

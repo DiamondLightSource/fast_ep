@@ -13,81 +13,37 @@ import time
 import shutil
 import math
 import traceback
-import string
 import json
 from os.path import basename, splitext
 from multiprocessing import Pool
+from operator import and_
+from itertools import product
+from math import isnan
 
-from iotbx import mtz
 from iotbx import pdb
 from iotbx.reflection_file_reader import any_reflection_file
 from libtbx.phil import parse
-from cctbx.sgtbx import space_group, space_group_symbols
+from cctbx.sgtbx import space_group_symbols
 from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 
-if not 'FAST_EP_ROOT' in os.environ:
-    raise RuntimeError, 'FAST_EP_ROOT not set'
-
-fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
-
-if not fast_ep_lib in sys.path:
-    sys.path.append(fast_ep_lib)
-
-from xml_output import write_ispyb_xml, xmlfile2json
-
-from generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
+from lib.report import render_html_report
+from lib.xml_output import write_ispyb_xml, xmlfile2json, store_string_xml
+from lib.generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
      spacegroup_enantiomorph, spacegroup_full, sanitize_spacegroup
-from number_sites_estimate import number_sites_estimate, \
-     number_residues_estimate
-from guess_the_atom import guess_the_atom
-from run_job import run_job, run_job_cluster, is_cluster_job_finished
-from fast_ep_shelxd import run_shelxd_drmaa_array, run_shelxd_local, analyse_res, \
-     happy_shelxd_log, shelxd_cc_all
-from fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local
+from lib.run_job import run_job
+from src.fast_ep_helpers import modify_ins_text, useful_number_sites
+from src.fast_ep_shelxd import get_shelxd_results, get_average_ranks, \
+     log_rank_table, log_shelxd_results, run_shelxd_drmaa_array,\
+    run_shelxd_local, get_shelxd_result_ranks, log_shelxd_results_advanced
+from src.fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local,\
+    read_shelxe_log
+from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
+    hist_shelxd_cc, plot_shelxe_fom_mapcc, plot_shelxe_mean_fom_cc,\
+    plot_anom_shelxc
+from datetime import datetime
 
-def useful_number_sites(_cell, _pointgroup):
-    nha = number_sites_estimate(_cell, _pointgroup)
-
-    result = []
-
-    for f in [0.25, 0.5, 1.0, 2.0, 4.0]:
-        nha_test = int(round(f * nha))
-        if nha_test and not nha_test in result:
-            result.append(nha_test)
-
-    if not result:
-        result = [1]
-
-    return result
-
-def modify_ins_text(_ins_text, _spacegroup, _nsites, _rlimit):
-    '''Update the text in a SHELXD .ins file to handle the correct number
-    of sites and spacegroup symmetry operations.'''
-
-    new_text = []
-
-    symm = [op.as_xyz().upper() for op in
-            space_group(space_group_symbols(_spacegroup).hall()).smx()]
-
-    for record in _ins_text:
-        if 'SYMM' in record:
-            if not symm:
-                continue
-            for op in symm:
-                if op == 'X,Y,Z':
-                    continue
-                new_text.append(('SYMM %s' % op))
-            symm = None
-        elif 'FIND' in record:
-            new_text.append(('FIND %d' % _nsites))
-        elif 'SHEL' in record:
-            new_text.append(('SHEL 999 %.1f' % _rlimit))
-        else:
-            new_text.append(record.strip())
-
-    return new_text
 
 class logger:
     def __init__(self):
@@ -103,6 +59,7 @@ class logger:
         sys.stdout.write('%s\n' % _line)
         self._fout.write('%s\n' % _line)
         return
+
 
 class Fast_ep_parameters:
     '''A class to wrap up the parameters for fast_ep e.g. the number of machines
@@ -131,8 +88,9 @@ fast_ep {
     .type = floats(value_min=0)
   xml = ''
     .type = str
-  plot = False
-    .type = bool
+  mode = *basic advanced
+    .help = "fast_ep operation setting"
+    .type = choice
   trace = False
     .type = bool
 }
@@ -176,11 +134,11 @@ fast_ep {
     def get_xml(self):
         return self._parameters.fast_ep.xml
 
-    def get_plot(self):
-        return self._parameters.fast_ep.plot
-
     def get_trace(self):
         return self._parameters.fast_ep.trace
+    
+    def get_mode(self):
+        return self._parameters.fast_ep.mode
 
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
@@ -201,12 +159,13 @@ class Fast_ep:
         self._atom = _parameters.get_atom()
         self._ntry = _parameters.get_ntry()
         self._ano_rlimits = _parameters.get_rlims()
-        self._plot = _parameters.get_plot()
         self._trace = _parameters.get_trace()
+        self._mode = _parameters.get_mode()
         self._data = None
         self._spacegroups = [_parameters.get_spg(),] if _parameters.get_spg() else None
         self._nsites = [_parameters.get_nsites(),] if _parameters.get_nsites() else None
         self._xml_name = _parameters.get_xml()
+        self._start_time = datetime.now().strftime("%c")
 
         if self._machines == 1:
             self._cluster = False
@@ -272,6 +231,7 @@ class Fast_ep:
 
         # write out a nice summary of the data set properties and what columns
         # were selected for analysis
+        self._dataset_table = []
         for dtname, data in zip_dataset_names:
             self._log('Dataset:     %s' % dtname)
             self._log('Columns:     %s' % data.info().label_string())
@@ -291,6 +251,24 @@ class Fast_ep:
                 self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
                                                  sum(differences.sigmas())))
 
+            table_vals = {'dtname': dtname,
+                          'col_labels': data.info().label_string(),
+                          'unit_cell': self._unit_cell,
+                          'pg': data.crystal_symmetry().space_group().type().lookup_symbol(),
+                          'resol_range': data.resolution_range(),
+                          'nrefl': data.size(),
+                          'n_pairs': data.n_bijvoet_pairs() if data.anomalous_flag() else 0,
+                          'anom_flg': data.anomalous_flag()
+                         }
+            if data.anomalous_flag():
+                table_vals.update({'anom_signal': data.anomalous_signal(),
+                                   'anom_diff': (sum(abs(data.anomalous_differences().data())) / 
+                                                 sum(data.anomalous_differences().sigmas())),
+                                  })
+
+            self._dataset_table.append(table_vals)
+
+            
             # Now set up the job - run shelxc, assess anomalous signal, compute
             # possible spacegroup options, generate scalepack format reflection
             # file etc.
@@ -318,7 +296,7 @@ class Fast_ep:
         shelxc_input_files = ['%s %s.sca' % (v[0],v[0]) for v in zip_dataset_names]
         shelxc_stdin = ['cell %.3f %.3f %.3f %.3f %.3f %.3f' % self._unit_cell,
                  'spag %s' % sanitize_spacegroup(spacegroup),
-                 'sfac %s' % string.upper(self._atom),
+                 'sfac %s' % self._atom.upper(),
                  'find %d' % nsite,
                  'mind -3.5',
                  'ntry %d' % ntry]
@@ -358,13 +336,15 @@ class Fast_ep:
                       (table['dmin'][j], table['isig'][j],
                        table['comp'][j], table['dsig'][j]))
 
+        plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], 'shelxc_anom.png')
+
         if self._ano_rlimits == [0]:
             self._ano_rlimits = [self._dmax]
+        elif not self._ano_rlimits:
+            self._ano_rlimits = [self._dmax] if self._mode == 'basic' \
+                                else [self._dmax, self._dmax + 0.25, self._dmax + 0.5]
 
-        if not self._ano_rlimits:
-            self._ano_rlimits =  [self._dmax, self._dmax + 0.25, self._dmax + 0.5]
-
-        self._log('Anomalous limits: %s' %  ' '.join(["%.1f" % v for v in self._ano_rlimits]))
+        self._log('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
 
         # store the ins file text - will need to modify this when we come to
         # run shelxd...
@@ -403,7 +383,7 @@ class Fast_ep:
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
-                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.1f" % rlimit)
+                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.2f" % rlimit)
                     if not os.path.exists(wd):
                         os.makedirs(wd)
 
@@ -421,7 +401,7 @@ class Fast_ep:
         # for potential for fewer available machines than jobs
 
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
-
+        
         if cluster:
             run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout)
         else:
@@ -430,84 +410,51 @@ class Fast_ep:
 
         # now gather up all of the results, find the one with best cfom
 
-        best_cfom = 0.0
-        best_cc = 0.0
-        best_ccweak = 0.0
-        best_norm_cc = 0.0
-        best_spacegroup = None
-        best_nsite = 0
-        best_nsite_real = 0
-        best_ano_rlimit = 0
+        results = get_shelxd_results(self._wd,
+                                     self._spacegroups,
+                                     self._nsites,
+                                     self._ano_rlimits,
+                                     self._mode == 'advanced')
+        if self._mode == 'basic':
+            best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0), results.iteritems()),
+                                        key=lambda (k, v): v['CFOM'])
+        else:
+            result_ranks = get_shelxd_result_ranks(results,
+                                                   self._spacegroups,
+                                                   self._nsites,
+                                                   self._ano_rlimits)
+            aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
+            best_sg, _ = min(filter(lambda (_, v): reduce(and_, (not isnan(x) for x in v.values())),
+                                    aver_ranks.iteritems()),
+                             key=lambda (_, v): min(v.values()))
+        
+            best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0) and (k[0] == best_sg),
+                                           results.iteritems()),
+                                    key=lambda (k, v): v['CCres'])
+            log_rank_table(self._log, aver_ranks, self._spacegroups, best_sg)
+        
+        (best_spacegroup,
+         best_nsite,
+         best_ano_rlimit) = best_keys
 
-        results = { }
-
-        for spacegroup in self._spacegroups:
-            for nsite in self._nsites:
-                for rlimit in self._ano_rlimits:
-                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.1f" % rlimit)
-
-                    shelxd_log = os.path.join(wd, 'sad_fa.lst')
-
-                    if self._plot:
-                        from fast_ep_helpers import plot_shelxd_cc
-                        shelxd_plot = os.path.join(wd, 'sad_fa.png')
-
-                        plot_shelxd_cc(shelxd_log, shelxd_plot, spacegroup, nsite, rlimit)
-
-                    if happy_shelxd_log(shelxd_log):
-                        res = open(os.path.join(wd, 'sad_fa.res')).readlines()
-                        cc, cc_weak, cfom, nsite_real = analyse_res(res)
-                        norm_cc = shelxd_cc_all(os.path.join(wd, 'sad_fa.pdb'),
-                                                os.path.join(wd, 'sad_fa.hkl'),
-                                                os.path.join(wd, 'sad_fa.ins'),
-                                                3.0)
-
-                        results[(spacegroup, nsite, rlimit)] = (cc, cc_weak, cfom,
-                                                        nsite_real, norm_cc)
-
-                        if norm_cc > best_norm_cc and nsite_real > 0:
-                            best_cfom = cfom
-                            best_cc = cc
-                            best_ccweak = cc_weak
-                            best_norm_cc = norm_cc
-                            best_spacegroup = spacegroup
-                            best_nsite = nsite
-                            best_nsite_real = nsite_real
-                            best_ano_rlimit = rlimit
-
-                    else:
-                        results[(spacegroup, nsite, rlimit)] = (0.0, 0.0, 0.0, 0, 0.0)
-
-        for spacegroup in self._spacegroups:
-            if spacegroup == best_spacegroup:
-                self._log('Spacegroup: %s (best)' % spacegroup)
-                self._xml_results['SPACEGROUP'] = space_group_symbols(
-                    spacegroup).number()
-            else:
-                self._log('Spacegroup: %s' % spacegroup)
-
-            self._log('No.  Res.  CCres  CCall  CCweak CFOM  No. found')
-            for nsite in self._nsites:
-                write_nsite = True
-                for rlimit in self._ano_rlimits:
-                        (cc, cc_weak, cfom, nsite_real, norm_cc) = results[(spacegroup, nsite, rlimit)]
-                        if write_nsite:
-                            log_pattern = '%3d  %.1f  %6.2f %6.2f %6.2f %6.2f %3d'
-                        else:
-                            log_pattern = '     %.1f  %6.2f %6.2f %6.2f %6.2f %3d'
-                        if (spacegroup, nsite, rlimit) == (best_spacegroup, best_nsite, best_ano_rlimit):
-                            log_pattern += ' (best)'
-                        if write_nsite:
-                            self._log(log_pattern % (nsite, rlimit,
-                                                     norm_cc,
-                                                     cc, cc_weak,
-                                                     cfom, nsite_real))
-                        else:
-                            self._log(log_pattern % (rlimit,
-                                                     norm_cc,
-                                                     cc, cc_weak,
-                                                     cfom, nsite_real))
-                        write_nsite = False
+        (best_cc,
+         best_ccweak,
+         best_cfom,
+         best_nsite_real) = [best_stats[col] for col in ['CCall', 'CCweak', 'CFOM', 'nsites']]
+        
+        if self._mode == 'basic':
+            log_shelxd_results(self._log, results, self._spacegroups, best_keys, self._xml_results)
+        else:
+            log_shelxd_results_advanced(self._log, results, result_ranks, self._spacegroups, best_keys, self._xml_results)
+        
+        try:
+            plot_shelxd_cc(self._wd, results, self._spacegroups, 'shelxd_cc.png')
+            plot_shelxd_cc(self._wd,
+                           dict([(k,v) for k,v in results.iteritems() if k[1] == best_nsite and k[2] == best_ano_rlimit]),
+                           self._spacegroups, 'shelxd_cc_best.png')
+            hist_shelxd_cc(self._wd, results, self._spacegroups)
+        except:
+            self._log("Exception thrown while plotting SHELXD results.")
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
@@ -517,7 +464,7 @@ class Fast_ep:
 
         self._log('Best spacegroup: %s' % best_spacegroup)
         self._log('Best nsites:     %d' % best_nsite_real)
-        self._log('Best resolution: %.1f A' % best_ano_rlimit)
+        self._log('Best resolution: %.2f A' % best_ano_rlimit)
         self._log('Best CC / weak:  %.2f / %.2f' % (best_cc, best_ccweak))
 
         self._best_spacegroup = best_spacegroup
@@ -526,14 +473,14 @@ class Fast_ep:
         self._best_cfom = best_cfom
         self._best_cc = best_cc
         self._best_ccweak = best_ccweak
+        
+        self._results = results
 
         # copy back result files
 
-        best = os.path.join(self._wd, best_spacegroup.replace(':', '-'), str(best_nsite), "%.1f" % best_ano_rlimit)
+        best = os.path.join(self._wd, best_spacegroup.replace(':', '-'), str(best_nsite), "%.2f" % best_ano_rlimit)
 
         endings = ['lst', 'pdb', 'res']
-        if self._plot:
-            endings.append('png')
 
         for ending in endings:
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
@@ -585,39 +532,24 @@ class Fast_ep:
             pool = Pool(min(njobs * ncpu, len(jobs)))
             pool.map(run_shelxe_local, jobs)
 
-        results = { }
-
-        best_fom = 0.0
-        best_solvent = None
-        best_hand = None
-
-        for solvent_fraction in solvent_fractions:
-            wd = os.path.join(self._wd, '%.2f' % solvent_fraction)
-
-            if self._plot:
-                from fast_ep_helpers import plot_shelxe_contrast
-                plot_shelxe_contrast(os.path.join(wd, 'sad.lst'),
-                                     os.path.join(wd, 'sad_i.lst'),
-                                     os.path.join(wd, 'sad.png'),
-                                     solvent_fraction)
-
-            for record in open(os.path.join(wd, 'sad.lst')):
-                if 'Estimated mean FOM =' in record:
-                    fom_orig = float(record.split()[4])
-            for record in open(os.path.join(wd, 'sad_i.lst')):
-                if 'Estimated mean FOM =' in record:
-                    fom_inv = float(record.split()[4])
-            results[solvent_fraction] = (fom_orig, fom_inv)
-
-            if fom_orig > best_fom:
-                best_fom = fom_orig
-                best_solvent = solvent_fraction
-                best_hand = 'original'
-
-            if fom_inv > best_fom:
-                best_fom = fom_inv
-                best_solvent = solvent_fraction
-                best_hand = 'inverted'
+        shelxe_stats = read_shelxe_log(self._wd, solvent_fractions)
+        skey = lambda s: '%.2f' % s
+        
+        best_solvent, best_hand, best_fom = max(((solv, hand, shelxe_stats['mean_fom_cc'][skey(solv)][hand]['mean_fom'])
+                                                for solv, hand in product(solvent_fractions, ['original', 'inverted'])),
+                                                key=lambda v: v[-1])
+        
+        try:
+            plot_shelxe_contrast({best_solvent: shelxe_stats['contrast'][skey(best_solvent)]},
+                                 os.path.join(self._wd, 'sad_best.png'), True)
+            plot_shelxe_contrast(shelxe_stats['contrast'],
+                                 os.path.join(self._wd, 'sad.png'))
+            plot_shelxe_fom_mapcc(shelxe_stats['fom_mapcc'],
+                                 os.path.join(self._wd, 'fom_mapcc.png'))
+            plot_shelxe_mean_fom_cc(shelxe_stats['mean_fom_cc'],
+                                 os.path.join(self._wd, 'mean_fom_cc.png'))
+        except:
+            self._log("Exception thrown while plotting SHELXE results.")
 
         self._best_fom = best_fom
         self._best_solvent = best_solvent
@@ -625,7 +557,8 @@ class Fast_ep:
 
         self._log('Solv. Orig. Inv.')
         for solvent_fraction in solvent_fractions:
-            fom_orig, fom_inv = results[solvent_fraction]
+            fom_orig, fom_inv = [shelxe_stats['mean_fom_cc'][skey(solvent_fraction)][hand]['pseudo_cc']
+                                 for hand in ['original', 'inverted']]
             if solvent_fraction == best_solvent:
                 self._log(
                     '%.2f %.3f %.3f (best)' % (solvent_fraction, fom_orig,
@@ -637,18 +570,16 @@ class Fast_ep:
         self._log('Best solvent: %.2f' % best_solvent)
         self._log('Best hand:    %s' % best_hand)
 
-        wd = os.path.join(self._wd, '%.2f' % best_solvent)
+        wd = os.path.join(self._wd, skey(best_solvent))
 
-        if best_hand == 'original':
-            filename_to_read = 'sad.lst'
-        elif best_hand == 'inverted':
-            filename_to_read = 'sad_i.lst'
-        else:
-            raise RuntimeError, 'unknown hand'
-        file_to_read = os.path.join(wd, filename_to_read)
-
-        self.get_fom_mapCC(file_to_read)
-
+        best_fom_mapcc = shelxe_stats['fom_mapcc'][skey(best_solvent)][best_hand]
+        parse_pairs = [([self._dmin,] + best_fom_mapcc['resol'][:-1], 'RESOLUTION_LOW'),
+                       (best_fom_mapcc['resol'], 'RESOLUTION_HIGH'),
+                       (best_fom_mapcc['fom'], 'FOM'),
+                       (best_fom_mapcc['mapcc'], 'MAPCC'),
+                       (best_fom_mapcc['nrefl'], 'NREFLECTIONS')]
+        for field_values, field_name in parse_pairs:
+            store_string_xml(self._xml_results, field_values, field_name)
         self._xml_results['FOM'] = best_fom
         self._xml_results['SOLVENTCONTENT'] = best_solvent
         self._xml_results['ENANTIOMORPH'] = (best_hand=='inverted')
@@ -680,11 +611,6 @@ class Fast_ep:
                                 os.path.join(self._wd, 'sad.%s' % ending))
             self._best_spacegroup = spacegroup_enantiomorph(
                 self._best_spacegroup)
-
-        if self._plot:
-            for ending in ['png']:
-                shutil.copyfile(os.path.join(wd, 'sad.%s' % ending),
-                                os.path.join(self._wd, 'sad.%s' % ending))
 
         self._log('Best spacegroup: %s' % self._best_spacegroup)
 
@@ -765,42 +691,31 @@ class Fast_ep:
         with open(os.path.join(self._wd, 'fast_ep_data.json'), 'w') as json_file:
             json_file.write(json_data)
 
+
+        template_dict = {'cpu'          : self._cpu,
+                         'machines'     : self._machines,
+                         'hklin'        : self._hklin,
+                         'wd'           : self._wd,
+                         'start_time'   : self._start_time,
+                         'ntry'         : self._ntry,
+                         'dataset_table': self._dataset_table,
+                         'best_sg'      : self._best_spacegroup,
+                         'nsite_real'   : self._best_nsite,
+                         'best_rlim'    : '%.2f' % self._best_ano_rlimit,
+                         'solv'         : '%2d' % (self._best_solvent * 100,),
+                         'cc'           : self._best_cc,
+                         'cc_weak'      : self._best_ccweak,
+                         'cfom'         : self._best_cfom,
+                         'fom'          : self._best_fom,
+                         'hand'         : self._best_hand,
+                         }
+        try:
+            render_html_report(template_dict)
+        except:
+            self._log("Exception thrown while generating HTML summary.")
+        
         return
 
-    def get_fom_mapCC(self, file_to_read):
-        for record in open(file_to_read):
-            check_string = 'd    inf'
-            #special due to initial case and separated resolutions
-            if check_string in record:
-                resolution_ranges = record.split(check_string)[1].split(' - ')
-                for resolution_number in xrange(0, len(resolution_ranges) - 1):
-                    resolution_number_name = str(resolution_number).zfill(2)
-                    k = 'RESOLUTION_LOW' + resolution_number_name
-                    if resolution_number == 0:
-                        self._xml_results[k] = self._dmin
-                    else:
-                        self._xml_results[k] = float(resolution_ranges[
-                            resolution_number])
-                    k = 'RESOLUTION_HIGH' + resolution_number_name
-                    self._xml_results[k] = float(resolution_ranges[
-                        resolution_number + 1])
-
-            parse_pairs = [['<FOM>', 'FOM'], ['<mapCC>', 'MAPCC'],
-                           ['N   ', 'NREFLECTIONS']]
-            for check_string, field_name in parse_pairs:
-                self._find_line_parse_string(check_string, record, field_name)
-
-    # look for a line starting with check_string, then split the rest of the
-    # string into values and store them
-
-    def _find_line_parse_string(self, check_string, record, field_name):
-        if check_string in record:
-            # remove the check_string, then split the remainder
-            field_values = record.split(check_string)[1].split()
-            for field_number in xrange(0, len(field_values)):
-                field_number_name = str(field_number).zfill(2)
-                k = field_name + field_number_name
-                self._xml_results[k] = field_values[field_number]
 
     def write_xml(self):
         if self._xml_name == '':

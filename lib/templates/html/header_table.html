@@ -1,0 +1,38 @@
+<table class="table">
+    <tbody>
+        <tr>
+            <th>Working directory</th>
+            <td>{{ wd }}</td>
+        </tr>
+        <tr>
+            <th>Timestamp</th>
+            <td>{{ start_time }}</td>
+        </tr>
+        <tr>
+            <th>Input data</th>
+            <td>{{ hklin }}</td>
+        </tr>
+        {% for params in dataset_table %}
+        <tr>
+            <th>Dataset</th>
+            <td>{{ params.dtname }}</td>
+        </tr>
+        <tr>
+            <th>Columns</th>
+            <td>{{ params.col_labels }}</td>
+        </tr>
+        <tr>
+            <th>Unit cell</th>
+            <td>{% for p in params.unit_cell %} {{'%0.2f'| format(p|float)}} {% endfor %}</td>
+        </tr>
+        <tr>
+            <th>Spacegroup</th>
+            <td>{{ params.pg }}</td>
+        </tr>
+        <tr>
+            <th>Resolution</th>
+            <td>{{'%0.2f'| format(params.resol_range[0]|float)}} - {{'%0.2f'| format(params.resol_range[1]|float)}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

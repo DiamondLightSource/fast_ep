@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fast_ep: {{ wd }}</title>
+<link rel="stylesheet"
+	href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+</head>
+<body>
+	<div class="container">
+		<div class="page-header">
+			<h2>fast_ep processing report</h2>
+		</div>
+		<div class="row">
+			<div class="col-xs-12">{% include "header_table.html" %}</div>
+		</div>
+		<ul class="nav nav-tabs">
+			<li class="active"><a href="#summary" data-toggle="tab">Summary</a></li>
+			<li><a href="#substructure" data-toggle="tab">Substructure</a></li>
+			<li><a href="#dm" data-toggle="tab">DM</a></li>
+		</ul>
+		<div class="tab-content">
+			<div class="tab-pane active" id="summary">{% include "main_summary.html" %}</div>
+			<div class="tab-pane" id="substructure">{% include "shelxd_summary.html" %}</div>
+			<div class="tab-pane" id="dm">{% include "shelxe_summary.html" %}</div>
+		</div>
+		<div class="panel panel-default">
+			{% include "references.html" %}
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+	<script
+		src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</body>
+</html>

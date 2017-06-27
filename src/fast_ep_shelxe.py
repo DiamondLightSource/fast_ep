@@ -7,18 +7,9 @@
 # of a dictionary with the information we need.
 
 import os
-import sys
 import time
 
-if not 'FAST_EP_ROOT' in os.environ:
-    raise RuntimeError, 'FAST_EP_ROOT not set'
-
-fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
-
-if not fast_ep_lib in sys.path:
-    sys.path.append(fast_ep_lib)
-
-from run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
+from lib.run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
 
 
 def run_shelxe_cluster(_settings):
@@ -167,3 +158,44 @@ def run_shelxe_local(_settings):
                                         '-s%f' % solv, '-d%f' % resol, '-m20', '-i'], [], wd)
 
     return
+
+
+def read_shelxe_log(pth, solvent_fractions):
+
+    res = {'contrast': {},
+           'fom_mapcc': {},
+           'mean_fom_cc': {}}
+    
+    for solvent_fraction in solvent_fractions:
+        solv_key = '%.2f' % solvent_fraction
+        for stats in res.itervalues():
+            stats[solv_key] = {}
+        
+        wd = os.path.join(pth, solv_key)
+        for hand, lst in [('original', os.path.join(wd, 'sad.lst'),),
+                          ('inverted', os.path.join(wd, 'sad_i.lst'))]:
+            
+            contrast = []
+            fom_mapcc = {}
+            
+            for record in open(lst):
+                if 'Contrast' in record and 'Connect' in record:
+                    tokens = record.replace(',', ' ').split()
+                    contrast.append(float(tokens[5]))
+                elif 'Estimated mean FOM =' in record:
+                    mean_fom = float(record.split()[4])
+                    pseudo_cc = float(record.split()[-2]) / 100.
+                    res['mean_fom_cc'][solv_key][hand] = {'mean_fom': mean_fom,
+                                                          'pseudo_cc': pseudo_cc}
+                else:
+                    for lbl, k, lst in [('d    inf', ' - ', 'resol'),
+                                        ('<FOM>', None, 'fom'),
+                                        ('<mapCC>', None, 'mapcc'),
+                                        ('N      ', None, 'nrefl')]:
+                        if lbl in record:
+                            fom_mapcc[lst] = [float(s) for s in record.split(k)[1:]]
+            res['contrast'][solv_key][hand] = contrast
+            res['fom_mapcc'][solv_key][hand] = fom_mapcc
+    
+    return res
+
