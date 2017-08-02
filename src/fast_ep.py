@@ -186,28 +186,30 @@ class Fast_ep:
         # --- SAD DATA ---
 
         reader = any_reflection_file(self._hklin)
+        self._file_type = reader.file_type()
+    
+        if self._file_type == 'ccp4_mtz':
+            self._file_content = reader.file_content()
+            self._is_merged = False if self._file_content.n_batches() > 0 else True
+            self._all_data = [m for m in reader.as_miller_arrays(merge_equivalents=self._is_merged)
+                    if type(m.observation_type()) is observation_types.intensity and (m.anomalous_flag() if self._is_merged else True)]
+            if not self._all_data:
+                raise RuntimeError, 'no intensity data found in %s' % self._hklin
+            
+            if self._native_hklin:
+                native_reader = any_reflection_file(self._native_hklin)
+                try:
+                    self._native = next(m for m in native_reader.as_miller_arrays(merge_equivalents=True)
+                                        if (type(m.observation_type()) is observation_types.intensity and
+                                            not m.anomalous_flag()))
+                except StopIteration:
+                    self._native = None
+        else:
+            raise RuntimeError, 'Unsupported input file type: %s' % self._file_type
 
-        ma = [m for m in reader.as_miller_arrays(merge_equivalents=True)
-                if type(m.observation_type()) is observation_types.intensity]
-        if not ma:
-            raise RuntimeError, 'no intensity data found in %s' % self._hklin
-
-        self._all_data = [m for m in ma if m.anomalous_flag()]
-        if not self._all_data:
-            raise RuntimeError, 'no anomalous intensity data found in %s' % self._hklin
-
-        if self._native_hklin:
-            native_reader = any_reflection_file(self._native_hklin)
-            try:
-                self._native = next(m for m in native_reader.as_miller_arrays(merge_equivalents=True)
-                                    if (type(m.observation_type()) is observation_types.intensity and
-                                        not m.anomalous_flag()))
-            except StopIteration:
-                self._native = None
-
-        self._nrefl = reader.file_content().n_reflections()
-        self._pointgroup = reader.file_content().space_group_number()
-        self._dmin, self._dmax = reader.file_content().max_min_resolution()
+        self._nrefl = self._file_content.n_reflections()
+        self._pointgroup = self._file_content.space_group_number()
+        self._dmin, self._dmax = self._file_content.max_min_resolution()
 
         self._xml_results= {}
         self._xml_results['LOWRES'] = self._dmin
@@ -273,8 +275,14 @@ class Fast_ep:
             # possible spacegroup options, generate scalepack format reflection
             # file etc.
 
+            if self._is_merged:
+                intensities = data
+            else:
+                indices = self._file_content.extract_original_index_miller_indices()
+                intensities = data.customized_copy(indices=indices, info=data.info())
+            
             merge_scalepack.write(file_name = '.'.join([dtname, 'sca']),
-                                  miller_array = data)
+                                  miller_array = intensities)
 
         # in here run shelxc to generate the ins file (which will need to be
         # modified) and the hkl files, which will need to be copied.
