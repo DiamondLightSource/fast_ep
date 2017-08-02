@@ -84,6 +84,8 @@ fast_ep {
     .type = int
   ntry = 200
     .type = int
+  ncycle = 20
+    .type = int
   rlims = None
     .type = floats(value_min=0)
   xml = ''
@@ -128,6 +130,9 @@ fast_ep {
     def get_ntry(self):
         return self._parameters.fast_ep.ntry
 
+    def get_ncycle(self):
+        return self._parameters.fast_ep.ncycle
+
     def get_rlims(self):
         return self._parameters.fast_ep.rlims
 
@@ -158,6 +163,7 @@ class Fast_ep:
         self._machines = _parameters.get_machines()
         self._atom = _parameters.get_atom()
         self._ntry = _parameters.get_ntry()
+        self._ncycle = _parameters.get_ncycle()
         self._ano_rlimits = _parameters.get_rlims()
         self._trace = _parameters.get_trace()
         self._mode = _parameters.get_mode()
@@ -511,6 +517,7 @@ class Fast_ep:
         ncpu = self._cpu
 
         solvent_fractions = [0.25 + 0.05 * j for j in range(11)]
+        timeout = 600 + self._ncycle
 
         jobs = [ ]
 
@@ -525,17 +532,17 @@ class Fast_ep:
                                 os.path.join(wd, 'sad_fa.%s' % ending))
 
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
-                         'resol':self._best_ano_rlimit,
+                         'ncycle':self._ncycle,
                          'hand':'original', 'wd':wd})
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
-                         'resol':self._best_ano_rlimit,
+                         'ncycle':self._ncycle,
                          'hand':'inverted', 'wd':wd})
 
         self._log('Running %d x shelxe jobs' % len(jobs))
 
 
         if cluster:
-            run_shelxe_drmaa_array(self._wd, njobs, jobs)
+            run_shelxe_drmaa_array(self._wd, njobs, jobs, timeout)
         else:
             pool = Pool(min(njobs * ncpu, len(jobs)))
             pool.map(run_shelxe_local, jobs)

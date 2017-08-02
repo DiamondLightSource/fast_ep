@@ -83,7 +83,7 @@ def run_shelxe_drmaa(njobs, job_settings):
     return
 
 
-def run_shelxe_drmaa_array(wd, njobs, job_settings):
+def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout):
     '''Run shelxe on cluster with settings given in dictionary, containing:
 
     nsite - number of sites
@@ -102,16 +102,16 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
             hand = '-i' if _settings['hand'] == 'inverted' else ''
             script.write('WORKING_DIR_{idx}={wd}\n'.format(idx=idx,
                                                            wd= _settings['wd']))
-            script.write('COMMAND_{idx}="shelxe sad sad_fa -h{nsite} -s{solv} -d{resol} -m20 {hand}"\n'.format(idx=idx,
+            script.write('COMMAND_{idx}="shelxe sad sad_fa -h{nsite} -s{solv} -m{ncycle} {hand}"\n'.format(idx=idx,
                                                                                                      nsite=_settings['nsite'],
                                                                                                      solv=_settings['solv'],
-                                                                                                     resol=_settings['resol'],
+                                                                                                     ncycle=_settings['ncycle'],
                                                                                                      hand=hand))
 
         script.write('TASK_WORKING_DIR=WORKING_DIR_${SGE_TASK_ID}\n')
         script.write('TASK_COMMAND=COMMAND_${SGE_TASK_ID}\n')
         script.write('cd ${!TASK_WORKING_DIR}\n')
-        script.write('${!TASK_COMMAND} > ${!TASK_WORKING_DIR}/FEP_shelxe.out  2> ${!TASK_WORKING_DIR}/FEP_shelxe.err')
+        script.write('${!TASK_COMMAND} > ${!TASK_WORKING_DIR}/FEP_shelxe_${SGE_TASK_ID}.out  2> ${!TASK_WORKING_DIR}/FEP_shelxe_${SGE_TASK_ID}.err')
 
     import drmaa
     with drmaa.Session() as session:
@@ -127,8 +127,8 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings):
         else:
             job.jobCategory = 'medium'
 
-        job.nativeSpecification = '-V -l h_rt={timeout} -tc {njobs}  -o /dev/null -e /dev/null'.format(timeout=600,
-                                                                            njobs=njobs)
+        job.nativeSpecification = '-V -l h_rt={timeout} -tc {njobs}  -o /dev/null -e /dev/null'.format(timeout=timeout,
+                                                                                                       njobs=njobs)
 
         job_ids = session.runBulkJobs(job, 1, len(job_settings), 1)
         session.synchronize(job_ids, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
