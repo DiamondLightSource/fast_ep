@@ -37,20 +37,24 @@ matplotlib.rcParams.update(params)
 def plot_anom_shelxc(resol, isig, dsig, png_file):
     '''Plot <I/sig> and <d"/sig> vs. resolution from SHELXC'''
 
-    fig, ax1 = plt.subplots(figsize=(6, 4))
+    fig, ax1 = plt.subplots(figsize=(8, 4))
     ax2 = ax1.twinx()
     
     x = range(len(resol))
     ax1.plot(x, isig, lw=1, label='<I/sig>', c='r')
     ax2.plot(x, dsig, lw=1, label='<d"/sig>', c='b')
     
-    ax1.set_xlabel('Resolution', fontsize=12)
-    ax1.set_ylabel('<I/sig>', fontsize=12)
-    ax2.set_ylabel('<d"/sig>', fontsize=12)
+    ax1.set_xlabel('Resolution / $\mathsf{\AA}$', fontsize=14)
+    ax1.set_ylabel('<I/sig>', fontsize=14)
+    ax2.set_ylabel('<d"/sig>', fontsize=14)
+    
     plt.xticks(x, resol)
+    ax1.tick_params(labelsize=14)
+    ax2.tick_params(labelsize=14)
+    
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    lgd1 = ax1.legend(h1 + h2, l1 + l2, loc=1, ncol=2)
+    lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.25, 1.02], loc=3, ncol=2, fontsize=14)
     plt.savefig(png_file, bbox_extra_artists=(lgd1, ), bbox_inches='tight')
     plt.close()
 
@@ -78,7 +82,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
             tmp_ax.scatter(cc_all, cc_weak, c=color, s=5, label=spacegroup, lw=0, alpha=0.75)
             textstr = 'HA : %s  Resol: %.2f$\mathsf{\AA}$' % (nsite, rlimit)
             tmp_ax.set_title(textstr, fontsize=10)
-            if i == len(nsites) - 1:
+            if i == len(ano_rlimits) - 1:
                 tmp_ax.set_xlabel('CCall', fontsize=10)
             if j == 0:
                 tmp_ax.set_ylabel('CCweak', fontsize=10)
@@ -118,7 +122,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
         for idx, col in enumerate(cols):
             x, y = divmod(idx, rows)
             axarr[y,x].bar(x_pos, y_vals[col], width=width, color=color, label=sg, alpha=0.75)
-            axarr[y,x].set_title(plt_labels[col])
+            axarr[y,x].set_title(plt_labels[col], fontsize=12)
             if y == 1 and i == len(spacegroups)/2:
                 axarr[y,x].set_xticks(x_pos)
                 axarr[y,x].set_xticklabels(x_vals, rotation='vertical')
@@ -145,8 +149,9 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
         ax.plot(cycles, contrast_orig, lw=1, c=color, label=lb_orig)
         ax.plot(cycles, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
     
-    plt.xlabel('Cycle')
-    plt.ylabel('Contrast')
+    plt.xlabel('Cycle', fontsize=14)
+    plt.ylabel('Contrast', fontsize=14)
+    plt.tick_params(labelsize=14)
     if add_legend:
         lgd = ax.legend(bbox_to_anchor=[.2, 1.02], loc=3, ncol=2)
         plt.savefig(png_file, bbox_extra_artists=(lgd,), bbox_inches='tight')
@@ -186,7 +191,7 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
 def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
     '''Plot <FOM> and <mapCC>  vs. Resolution from SHELXE'''
 
-    fig, ax1 = plt.subplots(figsize=(6, 4))
+    fig, ax1 = plt.subplots(figsize=(8, 4))
     ax2 = ax1.twinx()
     solv_axis = sorted(mean_fom_cc.keys())
     fom_orig, fom_inv, mapcc_orig, mapcc_inv = [[mean_fom_cc[solv][hand][stat] for solv in solv_axis]
@@ -198,14 +203,17 @@ def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
     ax2.plot(x, mapcc_orig, lw=1, label='pseudo-free CC Orig.', c='b')
     ax2.plot(x, mapcc_inv, ls='dashed', label='Inv.', lw=1, c='b')
     
-    ax1.set_xlabel('Solvent content')
-    ax1.set_ylabel('Est.<FOM>')
-    ax2.set_ylabel('pseudo-free CC')
+    ax1.set_xlabel('Solvent content', fontsize=14)
+    ax1.set_ylabel('Est.<FOM>', fontsize=14)
+    ax2.set_ylabel('pseudo-free CC', fontsize=14)
+    
     plt.xticks(x, solv_axis)
+    ax1.tick_params(labelsize=14)
+    ax2.tick_params(labelsize=14)
     
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.05, 1.02], loc=3, ncol=2)
+    lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.15, 1.02], loc=3, ncol=2)
     
     plt.savefig(png_file, bbox_extra_artists=(lgd1, ), bbox_inches='tight')
     plt.close()
