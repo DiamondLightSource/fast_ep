@@ -31,6 +31,9 @@ from libtbx import introspection
 if 'FAST_EP_ROOT' in os.environ:
     sys.path.append(os.environ['FAST_EP_ROOT'])
 
+from fast_ep_helpers import get_scipy
+get_scipy()
+
 from lib.report import render_html_report
 from lib.xml_output import write_ispyb_xml, xmlfile2json, store_string_xml
 from lib.generate_possible_spacegroups import generate_chiral_spacegroups_unique, \

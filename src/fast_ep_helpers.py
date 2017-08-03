@@ -195,6 +195,28 @@ def modify_ins_text(_ins_text, _spacegroup, _nsites, _rlimit):
 
     return new_text
 
+def get_scipy():
+  import os, sys
+  # make sure we can get scipy, if not try failing over to version in CCP4
+  try:
+    import scipy.cluster
+    found = True
+  except ImportError, e:
+    found = False
+
+  if not found and 'CCP4' in os.environ:
+    sys.path.append(os.path.join(os.environ['CCP4'], 'lib', 'python2.7',
+                                 'site-packages'))
+    try:
+      import scipy.cluster
+      found = True
+    except ImportError, e:
+      found = False
+
+  if not found:
+      raise RuntimeError, 'fast_ep needs scipy'
+
+
 if __name__ == '__main__':
 
     print autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt')
