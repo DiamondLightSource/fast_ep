@@ -28,6 +28,9 @@ from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 
+if 'FAST_EP_ROOT' in os.environ:
+    sys.path.append(os.environ['FAST_EP_ROOT'])
+
 from lib.report import render_html_report
 from lib.xml_output import write_ispyb_xml, xmlfile2json, store_string_xml
 from lib.generate_possible_spacegroups import generate_chiral_spacegroups_unique, \
@@ -43,7 +46,6 @@ from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
     hist_shelxd_cc, plot_shelxe_fom_mapcc, plot_shelxe_mean_fom_cc,\
     plot_anom_shelxc
 from datetime import datetime
-
 
 class logger:
     def __init__(self):
