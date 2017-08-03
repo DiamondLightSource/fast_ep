@@ -144,6 +144,9 @@ def run_shelxe_local(_settings):
     hand - original or inverted
     wd - working directory'''
 
+    if not 'resol' in _settings:
+        _settings['resol'] = 0.0
+
     nsite = _settings['nsite']
     solv = _settings['solv']
     hand = _settings['hand']
