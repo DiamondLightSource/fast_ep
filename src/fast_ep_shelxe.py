@@ -165,19 +165,19 @@ def read_shelxe_log(pth, solvent_fractions):
     res = {'contrast': {},
            'fom_mapcc': {},
            'mean_fom_cc': {}}
-    
+
     for solvent_fraction in solvent_fractions:
         solv_key = '%.2f' % solvent_fraction
         for stats in res.itervalues():
             stats[solv_key] = {}
-        
+
         wd = os.path.join(pth, solv_key)
         for hand, lst in [('original', os.path.join(wd, 'sad.lst'),),
                           ('inverted', os.path.join(wd, 'sad_i.lst'))]:
-            
+
             contrast = []
             fom_mapcc = {}
-            
+
             for record in open(lst):
                 if 'Contrast' in record and 'Connect' in record:
                     tokens = record.replace(',', ' ').split()
@@ -196,6 +196,5 @@ def read_shelxe_log(pth, solvent_fractions):
                             fom_mapcc[lst] = [float(s) for s in record.split(k)[1:]]
             res['contrast'][solv_key][hand] = contrast
             res['fom_mapcc'][solv_key][hand] = fom_mapcc
-    
-    return res
 
+    return res

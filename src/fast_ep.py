@@ -143,7 +143,7 @@ fast_ep {
 
     def get_trace(self):
         return self._parameters.fast_ep.trace
-    
+
     def get_mode(self):
         return self._parameters.fast_ep.mode
 
@@ -195,7 +195,7 @@ class Fast_ep:
 
         reader = any_reflection_file(self._hklin)
         self._file_type = reader.file_type()
-    
+
         if self._file_type == 'ccp4_mtz':
             self._file_content = reader.file_content()
             self._is_merged = False if self._file_content.n_batches() > 0 else True
@@ -203,7 +203,7 @@ class Fast_ep:
                     if type(m.observation_type()) is observation_types.intensity and (m.anomalous_flag() if self._is_merged else True)]
             if not self._all_data:
                 raise RuntimeError, 'no intensity data found in %s' % self._hklin
-            
+
             if self._native_hklin:
                 native_reader = any_reflection_file(self._native_hklin)
                 try:
@@ -272,13 +272,13 @@ class Fast_ep:
                          }
             if data.anomalous_flag():
                 table_vals.update({'anom_signal': data.anomalous_signal(),
-                                   'anom_diff': (sum(abs(data.anomalous_differences().data())) / 
+                                   'anom_diff': (sum(abs(data.anomalous_differences().data())) /
                                                  sum(data.anomalous_differences().sigmas())),
                                   })
 
             self._dataset_table.append(table_vals)
 
-            
+
             # Now set up the job - run shelxc, assess anomalous signal, compute
             # possible spacegroup options, generate scalepack format reflection
             # file etc.
@@ -288,7 +288,7 @@ class Fast_ep:
             else:
                 indices = self._file_content.extract_original_index_miller_indices()
                 intensities = data.customized_copy(indices=indices, info=data.info())
-            
+
             merge_scalepack.write(file_name = '.'.join([dtname, 'sca']),
                                   miller_array = intensities)
 
@@ -417,7 +417,7 @@ class Fast_ep:
         # for potential for fewer available machines than jobs
 
         self._log('Running %d x shelxd_mp jobs' % len(jobs))
-        
+
         if cluster:
             run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout)
         else:
@@ -443,12 +443,12 @@ class Fast_ep:
             best_sg, _ = min(filter(lambda (_, v): reduce(and_, (not isnan(x) for x in v.values())),
                                     aver_ranks.iteritems()),
                              key=lambda (_, v): min(v.values()))
-        
+
             best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0) and (k[0] == best_sg),
                                            results.iteritems()),
                                     key=lambda (k, v): v['CCres'])
             log_rank_table(self._log, aver_ranks, self._spacegroups, best_sg)
-        
+
         (best_spacegroup,
          best_nsite,
          best_ano_rlimit) = best_keys
@@ -457,12 +457,12 @@ class Fast_ep:
          best_ccweak,
          best_cfom,
          best_nsite_real) = [best_stats[col] for col in ['CCall', 'CCweak', 'CFOM', 'nsites']]
-        
+
         if self._mode == 'basic':
             log_shelxd_results(self._log, results, self._spacegroups, best_keys, self._xml_results)
         else:
             log_shelxd_results_advanced(self._log, results, result_ranks, self._spacegroups, best_keys, self._xml_results)
-        
+
         try:
             plot_shelxd_cc(self._wd, results, self._spacegroups, 'shelxd_cc.png')
             plot_shelxd_cc(self._wd,
@@ -489,7 +489,7 @@ class Fast_ep:
         self._best_cfom = best_cfom
         self._best_cc = best_cc
         self._best_ccweak = best_ccweak
-        
+
         self._results = results
 
         # copy back result files
@@ -551,11 +551,11 @@ class Fast_ep:
 
         shelxe_stats = read_shelxe_log(self._wd, solvent_fractions)
         skey = lambda s: '%.2f' % s
-        
+
         best_solvent, best_hand, best_fom = max(((solv, hand, shelxe_stats['mean_fom_cc'][skey(solv)][hand]['mean_fom'])
                                                 for solv, hand in product(solvent_fractions, ['original', 'inverted'])),
                                                 key=lambda v: v[-1])
-        
+
         try:
             plot_shelxe_contrast({best_solvent: shelxe_stats['contrast'][skey(best_solvent)]},
                                  os.path.join(self._wd, 'sad_best.png'), True)
@@ -730,7 +730,7 @@ class Fast_ep:
             render_html_report(template_dict)
         except:
             self._log("Exception thrown while generating HTML summary.")
-        
+
         return
 
 

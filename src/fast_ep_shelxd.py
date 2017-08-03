@@ -136,7 +136,7 @@ def run_shelxd_local(_settings):
 def analyse_res(wd):
 
     _res = open(os.path.join(wd, 'sad_fa.res')).readlines()
-    
+
     try:
         cc = float(_res[0].split()[5])
         if cc > 100.:
@@ -229,7 +229,7 @@ def get_shelxd_results(pth, spacegroups, nsites, ano_rlimits, advanced=False):
                                                             'nsites': 0}
                     if advanced:
                         results[(spacegroup, nsite, rlimit)].update({'CCres': -np.inf})
-    
+
     return results
 
 def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
@@ -250,7 +250,7 @@ def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
 
 
 def get_average_ranks(spacegroups, nsites, ano_rlims, results, result_ranks):
-    
+
     av_ranks = dict([(sg, {}) for sg in spacegroups])
     for sg, rk in av_ranks.iteritems():
         for col in ['CCall', 'CCweak', 'CFOM', 'CCres']:
@@ -286,7 +286,7 @@ def stats_shelxd_log(_shelxd_lst_file):
     '''Compute statistics values for CCall/weak and CFOM data'''
     cc, cc_weak, cfom = read_shelxd_log(_shelxd_lst_file)
     cc_set, cc_weak_set, cfom_set = map(set, [cc, cc_weak, cfom])
-    
+
     res = []
     for vals, st in [(cc, cc_set),
                      (cc_weak, cc_weak_set),
@@ -324,7 +324,7 @@ def shelxd_substructure_ecalc(pdb_sub, ea, fa_ins, d_min, n_bins):
     structure = pdb_obj.xray_structure_simple(crystal_symmetry=c)
     fcalc = ea.structure_factors_from_scatterers(xray_structure=structure, algorithm="direct").f_calc().amplitudes()
     fcalc.setup_binner(n_bins=n_bins)
-    
+
     ecalc = fcalc.quasi_normalize_structure_factors()
     ecalc.setup_binner(n_bins=n_bins)
     return ecalc
@@ -354,15 +354,15 @@ def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min, n_bins):
         ea, ea_weak = shelxd_read_hklf(fa_file, fa_ins, d_min, n_bins)
         ecalc = shelxd_substructure_ecalc(pdb_sub, ea, fa_ins, d_min, n_bins)
         ecalc_weak = shelxd_substructure_ecalc(pdb_sub, ea_weak, fa_ins, d_min, n_bins)
-        
+
         corr_all = 100.*ea.correlation(ecalc, use_binning=False).coefficient()
         if corr_all > 100.:
             corr_all = float('nan')
-        
+
         corr_weak = 100.*ea_weak.correlation(ecalc_weak, use_binning=False).coefficient()
         if corr_weak > 100.:
             corr_weak = float('nan')
-        
+
         corr_cfom = corr_all + corr_weak
         return corr_weak
     except:
@@ -370,7 +370,7 @@ def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min, n_bins):
 
 
 def log_rank_table(log, ranks, spacegroups, best_sg):
-    
+
     log('SHELXD solution rank averages-----------------------')
     log('    Spgr     CCres     CCall    CCweak     CFOM')
     cols = ['CCall', 'CCweak', 'CFOM', 'CCres']
@@ -385,11 +385,11 @@ def log_rank_table(log, ranks, spacegroups, best_sg):
                            ccweak_rank, rccweak_rank,
                            cfom_rank, rcfom_rank))
     log('----------------------------------------------------')
-    
-    
+
+
 
 def log_shelxd_results(log, results, spacegroups, best_keys, xml_results):
-    
+
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
@@ -412,7 +412,7 @@ def log_shelxd_results(log, results, spacegroups, best_keys, xml_results):
                         log_pattern += ' (best)'
                     if write_nsite:
                         log(log_pattern % (nsite, rlimit,
-                                           cc, cc_weak, 
+                                           cc, cc_weak,
                                            cfom, nsite_real))
                     else:
                         log(log_pattern % (rlimit,
@@ -422,8 +422,8 @@ def log_shelxd_results(log, results, spacegroups, best_keys, xml_results):
 
 
 def log_shelxd_results_advanced(log, results, result_ranks, spacegroups, best_keys, xml_results):
-    
-    
+
+
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
@@ -449,7 +449,7 @@ def log_shelxd_results_advanced(log, results, result_ranks, spacegroups, best_ke
                     if write_nsite:
                         log(log_pattern % (nsite, rlimit,
                                            norm_cc, rk_norm_cc,
-                                           cc, rk_cc, cc_weak, rk_cc_weak, 
+                                           cc, rk_cc, cc_weak, rk_cc_weak,
                                            cfom, rk_cfom, nsite_real))
                     else:
                         log(log_pattern % (rlimit,
@@ -457,4 +457,3 @@ def log_shelxd_results_advanced(log, results, result_ranks, spacegroups, best_ke
                                            cc, rk_cc, cc_weak, rk_cc_weak,
                                            cfom, rk_cfom, nsite_real))
                     write_nsite = False
-

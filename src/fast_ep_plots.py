@@ -39,19 +39,19 @@ def plot_anom_shelxc(resol, isig, dsig, png_file):
 
     fig, ax1 = plt.subplots(figsize=(8, 4))
     ax2 = ax1.twinx()
-    
+
     x = range(len(resol))
     ax1.plot(x, isig, lw=1, label='<I/sig>', c='r')
     ax2.plot(x, dsig, lw=1, label='<d"/sig>', c='b')
-    
+
     ax1.set_xlabel('Resolution / $\mathsf{\AA}$', fontsize=14)
     ax1.set_ylabel('<I/sig>', fontsize=14)
     ax2.set_ylabel('<d"/sig>', fontsize=14)
-    
+
     plt.xticks(x, resol)
     ax1.tick_params(labelsize=14)
     ax2.tick_params(labelsize=14)
-    
+
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.25, 1.02], loc=3, ncol=2, fontsize=14)
@@ -62,9 +62,9 @@ def plot_anom_shelxc(resol, isig, dsig, png_file):
 def plot_shelxd_cc(pth, results, spacegroups, png_file):
     '''Summary plot of CCall / CCweak values from SHELXD for all
     space group, heavy atom number and resolution combinations'''
-    
+
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
-    
+
     fig, axarr = plt.subplots(len(ano_rlimits), len(nsites), squeeze=False,
                               figsize=(4*len(nsites), 3*len(ano_rlimits)))
     shelxd_plot = os.path.join(pth, png_file)
@@ -78,7 +78,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
             cc_all, cc_weak, _ = read_shelxd_log(shelxd_log)
             cc_all_sg.extend(cc_all)
             cc_weak_sg.extend(cc_weak)
-            
+
             tmp_ax.scatter(cc_all, cc_weak, c=color, s=5, label=spacegroup, lw=0, alpha=0.75)
             textstr = 'HA : %s  Resol: %.2f$\mathsf{\AA}$' % (nsite, rlimit)
             tmp_ax.set_title(textstr, fontsize=10)
@@ -95,9 +95,9 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
 def hist_shelxd_cc(pth, results, spacegroups, rows=2):
     '''Histogram plot of SHELXD results for best solutions found for all
     combinations of space group, heavy atom number and resolution parameters'''
-    
+
     _, nsite_set, resol_set = map(sorted, map(set, zip(*results.keys())))
-    
+
     cols = ['CCall', 'CCweak', 'CFOM', 'nsites']
     plt_labels = dict(zip(cols, ['CCall', 'CCweak', 'CFOM', 'No. Found HA sites']))
     ncols = int(ceil(float(len(cols))/rows))
@@ -117,7 +117,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
                     continue
                 for col, y_val in y_vals.iteritems():
                     y_val.append(vals[col])
-        
+
         x_pos = [x + offset for x in range(len(x_vals))]
         for idx, col in enumerate(cols):
             x, y = divmod(idx, rows)
@@ -142,13 +142,13 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
         contrast_vals = shelxe_contrast[solvent_fraction]
         contrast_orig, contrast_other = contrast_vals['original'], contrast_vals['inverted']
         cycles = [j + 1 for j in range(len(contrast_orig))]
-        
+
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv. {}'.format(solvent_fraction)
         color = cm.Paired(float(l)/12)
         ax.plot(cycles, contrast_orig, lw=1, c=color, label=lb_orig)
         ax.plot(cycles, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
-    
+
     plt.xlabel('Cycle', fontsize=14)
     plt.ylabel('Contrast', fontsize=14)
     plt.tick_params(labelsize=14)
@@ -157,7 +157,7 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
         plt.savefig(png_file, bbox_extra_artists=(lgd,), bbox_inches='tight')
     else:
         plt.savefig(png_file, bbox_inches='tight')
-    
+
     plt.close()
 
 
@@ -168,7 +168,7 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
     for l, solvent_fraction in enumerate(sorted(fom_mapcc.keys()), 1):
         vals = fom_mapcc[solvent_fraction]
         orig, other = vals['original'], vals['inverted']
-        
+
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv.'
         color = cm.Paired(float(l)/12)
@@ -177,13 +177,13 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
         ax1.plot(x, other['fom'], ls='dashed', label=lb_inv, lw=1, c=color)
         ax2.plot(x, orig['mapcc'], lw=1, label=lb_orig, c=color)
         ax2.plot(x, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
-    
+
     plt.xlabel('Resolution / $\mathsf{\AA}$')
     ax1.set_ylabel('<FOM>')
     ax2.set_ylabel('<mapCC>')
     ax1.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,p: orig['resol'][p]))
     lgd = ax1.legend(bbox_to_anchor=[1.02, 1.], loc=2, ncol=2, fontsize=10)
-    
+
     plt.savefig(png_file, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.close()
 
@@ -202,19 +202,18 @@ def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
     ax1.plot(x, fom_inv, ls='dashed', label='Inv.', lw=1, c='r')
     ax2.plot(x, mapcc_orig, lw=1, label='pseudo-free CC Orig.', c='b')
     ax2.plot(x, mapcc_inv, ls='dashed', label='Inv.', lw=1, c='b')
-    
+
     ax1.set_xlabel('Solvent content', fontsize=14)
     ax1.set_ylabel('Est.<FOM>', fontsize=14)
     ax2.set_ylabel('pseudo-free CC', fontsize=14)
-    
+
     plt.xticks(x, solv_axis)
     ax1.tick_params(labelsize=14)
     ax2.tick_params(labelsize=14)
-    
+
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
     lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.15, 1.02], loc=3, ncol=2)
-    
+
     plt.savefig(png_file, bbox_extra_artists=(lgd1, ), bbox_inches='tight')
     plt.close()
-
