@@ -357,6 +357,7 @@ class Fast_ep:
 
         plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], 'shelxc_anom.png')
 
+        # FIXME conventionally dmax is the *low* resolution limit!
         if self._ano_rlimits == [0]:
             self._ano_rlimits = [self._dmax]
         elif not self._ano_rlimits:
