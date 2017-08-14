@@ -254,14 +254,26 @@ class Fast_ep:
                       self._unit_cell)
             self._log('Pointgroup:  %s' % data.crystal_symmetry().space_group().type().lookup_symbol())
             self._log('Resolution:  %.2f - %.2f' % data.resolution_range())
+            if data.is_unmerged_intensity_array():
+                indices = self._file_content.extract_original_index_miller_indices()
+                adata = data.customized_copy(indices=indices, info=data.info(),
+                                             anomalous_flag=True)
+                merger = adata.merge_equivalents(use_internal_variance=False)
+                merged = merger.array()
+                self._log('Rmeas%%:      %.2f' % (100*merger.r_meas()))
+                self._log('Rpim%%:       %.2f' % (100*merger.r_pim()))
+                self._log('Nrefl:       %d / %d / %d' %
+                    (data.size(), merged.size(), merged.n_bijvoet_pairs()))
+                self._log('DF/F:        %.3f' % merged.anomalous_signal())
 
-            if self._is_merged:
-                self._log('Nrefl:       %d / %d' % \
-                              (data.size(), data.n_bijvoet_pairs() \
-                                   if data.anomalous_flag() else 0))
+                differences = merged.anomalous_differences()
+
+                self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                                                 sum(differences.sigmas())))
+
             else:
-                self._log('Nrefl:       %d (unmerged)' % data.size())
-            if data.anomalous_flag():
+                self._log('Nrefl:       %d / %d' % (data.size(),
+                                                    data.n_bijvoet_pairs()))
                 self._log('DF/F:        %.3f' % data.anomalous_signal())
 
                 differences = data.anomalous_differences()
@@ -362,9 +374,9 @@ class Fast_ep:
 
         self._log('SHELXC summary:')
         if 'chi2' in table:
-            self._log('Dmin  <I/sig>  Chi^2 %comp  <d"/sig>')
+            self._log('Dmin  <I/sig>  Chi^2  %comp  <d"/sig>')
             for j in range(shells):
-                self._log('%5.2f  %6.2f %6.2f %6.2f  %5.2f' %
+                self._log('%5.2f  %6.2f %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j], table['chi2'][j],
                          table['comp'][j], table['dsig'][j]))
         else:
