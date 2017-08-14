@@ -243,7 +243,8 @@ class Fast_ep:
             zip_dataset_names.append(('nat', self._native))
 
         # write out a nice summary of the data set properties and what columns
-        # were selected for analysis
+        # were selected for analysis #todo if unmerged make custom copy of
+        # merged data with pairs separated => get dF/F etc.
         self._dataset_table = []
         for dtname, data in zip_dataset_names:
             self._log('Dataset:     %s' % dtname)
@@ -254,8 +255,12 @@ class Fast_ep:
             self._log('Pointgroup:  %s' % data.crystal_symmetry().space_group().type().lookup_symbol())
             self._log('Resolution:  %.2f - %.2f' % data.resolution_range())
 
-            self._log('Nrefl:       %d / %d' % (data.size(),
-                                                data.n_bijvoet_pairs() if data.anomalous_flag() else 0))
+            if self._is_merged:
+                self._log('Nrefl:       %d / %d' % \
+                              (data.size(), data.n_bijvoet_pairs() \
+                                   if data.anomalous_flag() else 0))
+            else:
+                self._log('Nrefl:       %d (unmerged)' % data.size())
             if data.anomalous_flag():
                 self._log('DF/F:        %.3f' % data.anomalous_signal())
 
@@ -340,20 +345,34 @@ class Fast_ep:
                 table['comp'] = map(float, record.split()[1:])
             if record.strip().startswith('<d"/sig>'):
                 table['dsig'] = map(float, record.split()[1:])
+            if record.strip().startswith('Chi-sq'):
+                table['chi2'] = map(float, record.split()[1:])
 
         for row in ['isig', 'comp', 'dsig']:
             pad = len(table['dmin']) - len(table[row])
             if pad > 0:
                 table[row] += [float('nan')] * pad
 
+        if 'chi2' in table:
+            pad = len(table['dmin']) - len(table['chi2'])
+            if pad > 0:
+                table['chi2'] += [float('nan')] * pad
+
         shells = len(table['dmin'])
 
         self._log('SHELXC summary:')
-        self._log('Dmin  <I/sig>  %comp  <d"/sig>')
-        for j in range(shells):
-            self._log('%5.2f  %6.2f  %6.2f  %5.2f' %
-                      (table['dmin'][j], table['isig'][j],
-                       table['comp'][j], table['dsig'][j]))
+        if 'chi2' in table:
+            self._log('Dmin  <I/sig>  Chi^2 %comp  <d"/sig>')
+            for j in range(shells):
+                self._log('%5.2f  %6.2f %6.2f %6.2f  %5.2f' %
+                        (table['dmin'][j], table['isig'][j], table['chi2'][j],
+                         table['comp'][j], table['dsig'][j]))
+        else:
+            self._log('Dmin  <I/sig>  %comp  <d"/sig>')
+            for j in range(shells):
+                self._log('%5.2f  %6.2f  %6.2f  %5.2f' %
+                        (table['dmin'][j], table['isig'][j],
+                        table['comp'][j], table['dsig'][j]))
 
         plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], 'shelxc_anom.png')
 
