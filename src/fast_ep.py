@@ -220,11 +220,11 @@ class Fast_ep:
 
         self._nrefl = self._file_content.n_reflections()
         self._pointgroup = self._file_content.space_group_number()
-        self._dmin, self._dmax = self._file_content.max_min_resolution()
+        self._dmax, self._dmin = self._file_content.max_min_resolution()
 
         self._xml_results= {}
-        self._xml_results['LOWRES'] = self._dmin
-        self._xml_results['HIGHRES'] = self._dmax
+        self._xml_results['LOWRES'] = self._dmax
+        self._xml_results['HIGHRES'] = self._dmin
 
         return
 
@@ -359,10 +359,12 @@ class Fast_ep:
 
         # FIXME conventionally dmax is the *low* resolution limit!
         if self._ano_rlimits == [0]:
-            self._ano_rlimits = [self._dmax]
+            self._ano_rlimits = [self._dmin]
         elif not self._ano_rlimits:
-            self._ano_rlimits = [self._dmax] if self._mode == 'basic' \
-                                else [self._dmax, self._dmax + 0.25, self._dmax + 0.5]
+            if self._mode == 'basic':
+                self._ano_rlimits = [self._dmin]
+            else:
+                [self._dmin, self._dmin + 0.25, self._dmin + 0.5]
 
         self._log('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
 
