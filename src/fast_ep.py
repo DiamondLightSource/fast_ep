@@ -374,27 +374,27 @@ class Fast_ep:
                 table['dsig'] = map(float, record.split()[1:])
             if record.strip().startswith('Chi-sq'):
                 table['chi2'] = map(float, record.split()[1:])
+            if record.strip().startswith('CC(1/2)'):
+                table['cc12'] = map(float, record.split()[1:])
 
-        for row in ['isig', 'comp', 'dsig']:
-            pad = len(table['dmin']) - len(table[row])
+        for row in ['isig', 'comp', 'dsig', 'chi2', 'cc12']:
+            try:
+                pad = len(table['dmin']) - len(table[row])
+            except KeyError:
+                continue
             if pad > 0:
                 table[row] += [float('nan')] * pad
-
-        if 'chi2' in table:
-            pad = len(table['dmin']) - len(table['chi2'])
-            if pad > 0:
-                table['chi2'] += [float('nan')] * pad
 
         shells = len(table['dmin'])
 
         logging.info('SHELXC summary:')
-        if 'chi2' in table:
-            logging.info('Dmin  <I/sig>  Chi^2  %comp  <d"/sig>')
+        try:
+            logging.info('Dmin  <I/sig>  Chi^2  %comp  CC(1/2)  <d"/sig>')
             for j in range(shells):
-                logging.info('%5.2f  %6.2f %6.2f  %6.2f  %5.2f' %
+                logging.info('%5.2f  %6.2f %6.2f  %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j], table['chi2'][j],
-                         table['comp'][j], table['dsig'][j]))
-        else:
+                         table['comp'][j], table['cc12'][j], table['dsig'][j]))
+        except KeyError:
             logging.info('Dmin  <I/sig>  %comp  <d"/sig>')
             for j in range(shells):
                 logging.info('%5.2f  %6.2f  %6.2f  %5.2f' %
