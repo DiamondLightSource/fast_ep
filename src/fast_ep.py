@@ -31,6 +31,35 @@ from libtbx import introspection
 if 'FAST_EP_ROOT' in os.environ:
     sys.path.append(os.environ['FAST_EP_ROOT'])
 
+FAST_EP_LOGGING = {
+    'version' : 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'default': {
+            'format': '%(message)s'
+        },
+    },
+    'handlers': {
+        'console': {
+            'class':'logging.StreamHandler',
+            'formatter': 'default'
+        },
+        'file': {
+            'class':'logging.FileHandler',
+            'formatter': 'default',
+            'filename': 'fast_ep.log',
+            'mode': 'w',
+            'encoding': 'utf-8'
+        },
+    },
+    'root': {
+        'level': 'INFO',
+        'handlers': ['console', 'file']
+    }
+}
+import logging.config
+logging.config.dictConfig(FAST_EP_LOGGING)
+
 from fast_ep_helpers import get_scipy
 get_scipy()
 
@@ -50,20 +79,7 @@ from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
     plot_anom_shelxc
 from datetime import datetime
 
-class logger:
-    def __init__(self):
-        self._fout = open('fast_ep.log', 'w')
-        return
 
-    def __del__(self):
-        self._fout.close()
-        self._cout = None
-        return
-
-    def __call__(self, _line):
-        sys.stdout.write('%s\n' % _line)
-        self._fout.write('%s\n' % _line)
-        return
 
 
 class Fast_ep_parameters:
@@ -184,9 +200,8 @@ class Fast_ep:
             self._cluster = True
 
         self._wd = os.getcwd()
-        self._log = logger()
 
-        self._log('Using %d cpus / %d machines' % (self._cpu, self._machines))
+        logging.info('Using %d cpus / %d machines' % (self._cpu, self._machines))
 
         self._full_command_line = ' '.join(sys.argv)
 
@@ -231,8 +246,8 @@ class Fast_ep:
 
     def fa_values(self):
 
-        self._log('Input:       %s' % self._hklin)
-        self._log('N try:       %d' % self._ntry)
+        logging.info('Input:       %s' % self._hklin)
+        logging.info('N try:       %d' % self._ntry)
         dataset_names = ['sad',] if len(self._all_data) == 1 else ['peak', 'infl', 'hrem', 'lrem']
         if 'sad' in dataset_names:
             self._xml_results['SUBSTRUCTURE_METHOD'] = 'SAD'
@@ -247,38 +262,38 @@ class Fast_ep:
         # merged data with pairs separated => get dF/F etc.
         self._dataset_table = []
         for dtname, data in zip_dataset_names:
-            self._log('Dataset:     %s' % dtname)
-            self._log('Columns:     %s' % data.info().label_string())
+            logging.info('Dataset:     %s' % dtname)
+            logging.info('Columns:     %s' % data.info().label_string())
             self._unit_cell = data.unit_cell().parameters()
-            self._log('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
+            logging.info('Unit cell:   %.2f %.2f %.2f %.2f %.2f %.2f' % \
                       self._unit_cell)
-            self._log('Pointgroup:  %s' % data.crystal_symmetry().space_group().type().lookup_symbol())
-            self._log('Resolution:  %.2f - %.2f' % data.resolution_range())
+            logging.info('Pointgroup:  %s' % data.crystal_symmetry().space_group().type().lookup_symbol())
+            logging.info('Resolution:  %.2f - %.2f' % data.resolution_range())
             if data.is_unmerged_intensity_array():
                 indices = self._file_content.extract_original_index_miller_indices()
                 adata = data.customized_copy(indices=indices, info=data.info(),
                                              anomalous_flag=True)
                 merger = adata.merge_equivalents(use_internal_variance=False)
                 merged = merger.array()
-                self._log('Rmeas%%:      %.2f' % (100*merger.r_meas()))
-                self._log('Rpim%%:       %.2f' % (100*merger.r_pim()))
-                self._log('Nrefl:       %d / %d / %d' %
+                logging.info('Rmeas%%:      %.2f' % (100*merger.r_meas()))
+                logging.info('Rpim%%:       %.2f' % (100*merger.r_pim()))
+                logging.info('Nrefl:       %d / %d / %d' %
                     (data.size(), merged.size(), merged.n_bijvoet_pairs()))
-                self._log('DF/F:        %.3f' % merged.anomalous_signal())
+                logging.info('DF/F:        %.3f' % merged.anomalous_signal())
 
                 differences = merged.anomalous_differences()
 
-                self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
                                                  sum(differences.sigmas())))
 
             else:
-                self._log('Nrefl:       %d / %d' % (data.size(),
+                logging.info('Nrefl:       %d / %d' % (data.size(),
                                                     data.n_bijvoet_pairs()))
-                self._log('DF/F:        %.3f' % data.anomalous_signal())
+                logging.info('DF/F:        %.3f' % data.anomalous_signal())
 
                 differences = data.anomalous_differences()
 
-                self._log('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
                                                  sum(differences.sigmas())))
 
             table_vals = {'dtname': dtname,
@@ -318,7 +333,7 @@ class Fast_ep:
         if not self._spacegroups:
             self._spacegroups = generate_chiral_spacegroups_unique(self._pointgroup)
 
-        self._log('Spacegroups: %s' % ' '.join(self._spacegroups))
+        logging.info('Spacegroups: %s' % ' '.join(self._spacegroups))
 
         if not self._nsites:
             self._nsites = useful_number_sites(self._unit_cell, self._pointgroup)
@@ -372,17 +387,17 @@ class Fast_ep:
 
         shells = len(table['dmin'])
 
-        self._log('SHELXC summary:')
+        logging.info('SHELXC summary:')
         if 'chi2' in table:
-            self._log('Dmin  <I/sig>  Chi^2  %comp  <d"/sig>')
+            logging.info('Dmin  <I/sig>  Chi^2  %comp  <d"/sig>')
             for j in range(shells):
-                self._log('%5.2f  %6.2f %6.2f  %6.2f  %5.2f' %
+                logging.info('%5.2f  %6.2f %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j], table['chi2'][j],
                          table['comp'][j], table['dsig'][j]))
         else:
-            self._log('Dmin  <I/sig>  %comp  <d"/sig>')
+            logging.info('Dmin  <I/sig>  %comp  <d"/sig>')
             for j in range(shells):
-                self._log('%5.2f  %6.2f  %6.2f  %5.2f' %
+                logging.info('%5.2f  %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j],
                         table['comp'][j], table['dsig'][j]))
 
@@ -395,9 +410,9 @@ class Fast_ep:
             if self._mode == 'basic':
                 self._ano_rlimits = [self._dmin]
             else:
-                [self._dmin, self._dmin + 0.25, self._dmin + 0.5]
+                self._ano_rlimits = [self._dmin, self._dmin + 0.25, self._dmin + 0.5]
 
-        self._log('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
+        logging.info('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
 
         # store the ins file text - will need to modify this when we come to
         # run shelxd...
@@ -453,7 +468,7 @@ class Fast_ep:
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
 
-        self._log('Running %d x shelxd_mp jobs' % len(jobs))
+        logging.info('Running %d x shelxd_mp jobs' % len(jobs))
 
         if cluster:
             run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout)
@@ -484,7 +499,7 @@ class Fast_ep:
             best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0) and (k[0] == best_sg),
                                            results.iteritems()),
                                     key=lambda (k, v): v['CCres'])
-            log_rank_table(self._log, aver_ranks, self._spacegroups, best_sg)
+            log_rank_table(aver_ranks, self._spacegroups, best_sg)
 
         (best_spacegroup,
          best_nsite,
@@ -496,9 +511,9 @@ class Fast_ep:
          best_nsite_real) = [best_stats[col] for col in ['CCall', 'CCweak', 'CFOM', 'nsites']]
 
         if self._mode == 'basic':
-            log_shelxd_results(self._log, results, self._spacegroups, best_keys, self._xml_results)
+            log_shelxd_results(results, self._spacegroups, best_keys, self._xml_results)
         else:
-            log_shelxd_results_advanced(self._log, results, result_ranks, self._spacegroups, best_keys, self._xml_results)
+            log_shelxd_results_advanced(results, result_ranks, self._spacegroups, best_keys, self._xml_results)
 
         try:
             plot_shelxd_cc(self._wd, results, self._spacegroups, 'shelxd_cc.png')
@@ -507,18 +522,18 @@ class Fast_ep:
                            self._spacegroups, 'shelxd_cc_best.png')
             hist_shelxd_cc(self._wd, results, self._spacegroups)
         except:
-            self._log("Exception thrown while plotting SHELXD results.")
+            logging.warning("WARNING: Exception thrown while plotting SHELXD results.")
 
         t1 = time.time()
-        self._log('Time: %.2f' % (t1 - t0))
+        logging.info('Time: %.2f' % (t1 - t0))
 
         if not best_spacegroup:
             raise RuntimeError, 'All shelxd jobs failed'
 
-        self._log('Best spacegroup: %s' % best_spacegroup)
-        self._log('Best nsites:     %d' % best_nsite_real)
-        self._log('Best resolution: %.2f A' % best_ano_rlimit)
-        self._log('Best CC / weak:  %.2f / %.2f' % (best_cc, best_ccweak))
+        logging.info('Best spacegroup: %s' % best_spacegroup)
+        logging.info('Best nsites:     %d' % best_nsite_real)
+        logging.info('Best resolution: %.2f A' % best_ano_rlimit)
+        logging.info('Best CC / weak:  %.2f / %.2f' % (best_cc, best_ccweak))
 
         self._best_spacegroup = best_spacegroup
         self._best_nsite = best_nsite_real
@@ -577,7 +592,7 @@ class Fast_ep:
                          'ncycle':self._ncycle,
                          'hand':'inverted', 'wd':wd})
 
-        self._log('Running %d x shelxe jobs' % len(jobs))
+        logging.info('Running %d x shelxe jobs' % len(jobs))
 
 
         if cluster:
@@ -603,26 +618,26 @@ class Fast_ep:
             plot_shelxe_mean_fom_cc(shelxe_stats['mean_fom_cc'],
                                  os.path.join(self._wd, 'mean_fom_cc.png'))
         except:
-            self._log("Exception thrown while plotting SHELXE results.")
+            logging.warning("WARNING: Exception thrown while plotting SHELXE results.")
 
         self._best_fom = best_fom
         self._best_solvent = best_solvent
         self._best_hand = best_hand
 
-        self._log('Solv. Orig. Inv.')
+        logging.info('Solv. Orig. Inv.')
         for solvent_fraction in solvent_fractions:
             fom_orig, fom_inv = [shelxe_stats['mean_fom_cc'][skey(solvent_fraction)][hand]['pseudo_cc']
                                  for hand in ['original', 'inverted']]
             if solvent_fraction == best_solvent:
-                self._log(
+                logging.info(
                     '%.2f %.3f %.3f (best)' % (solvent_fraction, fom_orig,
                                                fom_inv))
             else:
-                self._log('%.2f %.3f %.3f' % (solvent_fraction, fom_orig,
+                logging.info('%.2f %.3f %.3f' % (solvent_fraction, fom_orig,
                                               fom_inv))
 
-        self._log('Best solvent: %.2f' % best_solvent)
-        self._log('Best hand:    %s' % best_hand)
+        logging.info('Best solvent: %.2f' % best_solvent)
+        logging.info('Best hand:    %s' % best_hand)
 
         wd = os.path.join(self._wd, skey(best_solvent))
 
@@ -666,7 +681,7 @@ class Fast_ep:
             self._best_spacegroup = spacegroup_enantiomorph(
                 self._best_spacegroup)
 
-        self._log('Best spacegroup: %s' % self._best_spacegroup)
+        logging.info('Best spacegroup: %s' % self._best_spacegroup)
 
         if self._trace:
             # rerun shelxe to trace the chain
@@ -687,9 +702,9 @@ class Fast_ep:
                     shutil.copyfile(pdb_inv, pdb_final)
                 else:
                     shutil.copyfile(pdb_org, pdb_final)
-                self._log('Traced:       %d residues' % self._nres_trace)
+                logging.info('Traced:       %d residues' % self._nres_trace)
             except IOError:
-                self._log('Chain tracing was unsuccessful.')
+                logging.info('Chain tracing was unsuccessful.')
 
         # convert sites to pdb, inverting if needed
 
@@ -710,7 +725,7 @@ class Fast_ep:
         open('convert2mtz.log', 'w').write('\n'.join(o))
 
         t1 = time.time()
-        self._log('Time: %.2f' % (t1 - t0))
+        logging.info('Time: %.2f' % (t1 - t0))
 
         return
 
@@ -744,6 +759,8 @@ class Fast_ep:
         json_data = json.dumps(json_dict, indent=4, separators=(',', ':'))
         with open(os.path.join(self._wd, 'fast_ep_data.json'), 'w') as json_file:
             json_file.write(json_data)
+        with open(os.path.join(self._wd, 'fast_ep.log'), 'r') as log_file:
+            fastep_log = ''.join(log_file.readlines())
 
 
         template_dict = {'cpu'          : self._cpu,
@@ -762,11 +779,12 @@ class Fast_ep:
                          'cfom'         : self._best_cfom,
                          'fom'          : self._best_fom,
                          'hand'         : self._best_hand,
+                         'fastep_log'   : fastep_log
                          }
         try:
             render_html_report(template_dict)
-        except:
-            self._log("Exception thrown while generating HTML summary.")
+        except Exception, e:
+            logging.error("ERROR: Exception thrown while generating HTML summary.", exc_info=True)
 
         return
 
@@ -792,35 +810,35 @@ if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     try:
         fast_ep.fa_values()
-    except RuntimeError, e:
-        fast_ep._log('*** FA: %s ***' % str(e))
+    except Exception, e:
+        logging.error('*** FA: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.find_sites()
-    except RuntimeError, e:
-        fast_ep._log('*** FIND: %s ***' % str(e))
+    except Exception, e:
+        logging.error('*** FIND: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.phase()
-    except RuntimeError, e:
-        fast_ep._log('*** PHASE %s ***' % str(e))
-        traceback.print_exc(file = open('fast_ep.error', 'w'))
-        sys.exit(1)
-
-    try:
-        fast_ep.write_results()
-    except RuntimeError, e:
-        fast_ep._log('*** WRITE_RESULTS %s ***' % str(e))
+    except Exception, e:
+        logging.error('*** PHASE %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.write_xml()
-    except RuntimeError, e:
-        fast_ep._log('*** FINISH %s ***' % str(e))
+    except Exception, e:
+        logging.error('*** WRITE_XML %s ***' % str(e))
+        traceback.print_exc(file = open('fast_ep.error', 'w'))
+        sys.exit(1)
+
+    try:
+        fast_ep.write_results()
+    except Exception, e:
+        logging.error('*** FINISH %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)

@@ -9,6 +9,7 @@
 
 import os
 import time
+import logging
 import scipy.stats
 import numpy as np
 import iotbx.pdb
@@ -369,10 +370,10 @@ def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min, n_bins):
         return float('nan')
 
 
-def log_rank_table(log, ranks, spacegroups, best_sg):
+def log_rank_table(ranks, spacegroups, best_sg):
 
-    log('SHELXD solution rank averages-----------------------')
-    log('    Spgr     CCres     CCall    CCweak     CFOM')
+    logging.info('SHELXD solution rank averages-----------------------')
+    logging.info('    Spgr     CCres     CCall    CCweak     CFOM')
     cols = ['CCall', 'CCweak', 'CFOM', 'CCres']
     for sg in spacegroups:
         cc_rank, ccweak_rank, cfom_rank, normcc_rank = [ranks[sg][col] for col in cols]
@@ -380,25 +381,25 @@ def log_rank_table(log, ranks, spacegroups, best_sg):
         log_pattern = '%8s  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d'
         if sg == best_sg:
             log_pattern += '  (best)'
-        log(log_pattern % (sg, normcc_rank, rnormcc_rank,
+        logging.info(log_pattern % (sg, normcc_rank, rnormcc_rank,
                            cc_rank, rcc_rank,
                            ccweak_rank, rccweak_rank,
                            cfom_rank, rcfom_rank))
-    log('----------------------------------------------------')
+    logging.info('----------------------------------------------------')
 
 
 
-def log_shelxd_results(log, results, spacegroups, best_keys, xml_results):
+def log_shelxd_results(results, spacegroups, best_keys, xml_results):
 
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
-            log('Spacegroup: %s (best)' % spacegroup)
+            logging.info('Spacegroup: %s (best)' % spacegroup)
             xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
         else:
-            log('Spacegroup: %s' % spacegroup)
+            logging.info('Spacegroup: %s' % spacegroup)
 
-        log('No.  Res.   CCall  CCweak CFOM  No. found')
+        logging.info('No.  Res.   CCall  CCweak CFOM  No. found')
         cols = ['CCall', 'CCweak', 'CFOM', 'nsites']
         for nsite in nsites:
             write_nsite = True
@@ -411,28 +412,28 @@ def log_shelxd_results(log, results, spacegroups, best_keys, xml_results):
                     if (spacegroup, nsite, rlimit) == best_keys:
                         log_pattern += ' (best)'
                     if write_nsite:
-                        log(log_pattern % (nsite, rlimit,
+                        logging.info(log_pattern % (nsite, rlimit,
                                            cc, cc_weak,
                                            cfom, nsite_real))
                     else:
-                        log(log_pattern % (rlimit,
+                        logging.info(log_pattern % (rlimit,
                                            cc, cc_weak,
                                            cfom, nsite_real))
                     write_nsite = False
 
 
-def log_shelxd_results_advanced(log, results, result_ranks, spacegroups, best_keys, xml_results):
+def log_shelxd_results_advanced(results, result_ranks, spacegroups, best_keys, xml_results):
 
 
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
-            log('Spacegroup: %s (best)' % spacegroup)
+            logging.info('Spacegroup: %s (best)' % spacegroup)
             xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
         else:
-            log('Spacegroup: %s' % spacegroup)
+            logging.info('Spacegroup: %s' % spacegroup)
 
-        log('No.  Res.    CCres     CCall     CCweak    CFOM    No. found')
+        logging.info('No.  Res.    CCres     CCall     CCweak    CFOM    No. found')
         cols = ['CCall', 'CCweak', 'CFOM', 'nsites', 'CCres']
         rk_cols = ['CCall', 'CCweak', 'CFOM', 'CCres']
         for nsite in nsites:
@@ -447,12 +448,12 @@ def log_shelxd_results_advanced(log, results, result_ranks, spacegroups, best_ke
                     if (spacegroup, nsite, rlimit) == best_keys:
                         log_pattern += ' (best)'
                     if write_nsite:
-                        log(log_pattern % (nsite, rlimit,
+                        logging.info(log_pattern % (nsite, rlimit,
                                            norm_cc, rk_norm_cc,
                                            cc, rk_cc, cc_weak, rk_cc_weak,
                                            cfom, rk_cfom, nsite_real))
                     else:
-                        log(log_pattern % (rlimit,
+                        logging.info(log_pattern % (rlimit,
                                            norm_cc, rk_norm_cc,
                                            cc, rk_cc, cc_weak, rk_cc_weak,
                                            cfom, rk_cfom, nsite_real))
