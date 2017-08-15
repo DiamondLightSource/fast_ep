@@ -388,20 +388,20 @@ class Fast_ep:
         shells = len(table['dmin'])
 
         logging.info('SHELXC summary:')
-        try:
+        if 'cc12' in table and 'chi2' in table:
             logging.info('Dmin  <I/sig>  Chi^2  %comp  CC(1/2)  <d"/sig>')
             for j in range(shells):
                 logging.info('%5.2f  %6.2f %6.2f  %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j], table['chi2'][j],
                          table['comp'][j], table['cc12'][j], table['dsig'][j]))
-        except KeyError:
+            plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], table['chi2'], table['cc12'], 'shelxc_anom.png')
+        else:
             logging.info('Dmin  <I/sig>  %comp  <d"/sig>')
             for j in range(shells):
                 logging.info('%5.2f  %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j],
                         table['comp'][j], table['dsig'][j]))
-
-        plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], 'shelxc_anom.png')
+            plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], None, None, 'shelxc_anom.png')
 
         # FIXME conventionally dmax is the *low* resolution limit!
         if self._ano_rlimits == [0]:

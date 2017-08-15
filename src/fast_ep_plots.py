@@ -34,19 +34,24 @@ params = {
 matplotlib.rcParams.update(params)
 
 
-def plot_anom_shelxc(resol, isig, dsig, png_file):
+def plot_anom_shelxc(resol, isig, dsig, chi2, cc12, png_file):
     '''Plot <I/sig> and <d"/sig> vs. resolution from SHELXC'''
 
     fig, ax1 = plt.subplots(figsize=(8, 4))
     ax2 = ax1.twinx()
+    if chi2:
+        ax3 = ax1.twinx()
+        ax3.spines["right"].set_position(("axes", 1.1))
+    if cc12:
+        ax4 = ax1.twinx()
+        ax4.spines["right"].set_position(("axes", 1.2))
 
     x = range(len(resol))
-    ax1.plot(x, isig, lw=1, label='<I/sig>', c='r')
-    ax2.plot(x, dsig, lw=1, label='<d"/sig>', c='b')
-
-    ax1.set_xlabel('Resolution / $\mathsf{\AA}$', fontsize=14)
-    ax1.set_ylabel('<I/sig>', fontsize=14)
-    ax2.set_ylabel('<d"/sig>', fontsize=14)
+    plt1, = ax1.plot(x, isig, lw=1, label='$\mathregular{<I/\sigma>}$', c='r')
+    plt2, = ax2.plot(x, dsig, lw=1, label='$\mathregular{<d^{\prime\prime}/\sigma>}$', c='b')
+    ax1.set_xlabel('Resolution / $\mathregular{\AA}$', fontsize=14)
+    ax1.set_ylabel('$\mathregular{<I/\sigma>}$', fontsize=14, color=plt1.get_color(), labelpad=2)
+    ax2.set_ylabel('$\mathregular{<d^{\prime\prime}/\sigma>}$', fontsize=14, color=plt2.get_color(), labelpad=2)
 
     plt.xticks(x, resol)
     ax1.tick_params(labelsize=14)
@@ -54,7 +59,28 @@ def plot_anom_shelxc(resol, isig, dsig, png_file):
 
     h1, l1 = ax1.get_legend_handles_labels()
     h2, l2 = ax2.get_legend_handles_labels()
-    lgd1 = ax1.legend(h1 + h2, l1 + l2, bbox_to_anchor=[.25, 1.02], loc=3, ncol=2, fontsize=14)
+    ha = h1 + h2
+    la = l1 + l2
+    bbox_to_anchor, ncol = [.25, 1.02], 2
+
+    try:
+        plt3, = ax3.plot(x, chi2, lw=1, label='$\mathregular{\chi^2}$', c='c')
+        plt4, = ax4.plot(x, cc12, lw=1, label='$\mathregular{CC_{1/2}}$', c='g')
+
+        ax3.tick_params(labelsize=14)
+        ax4.tick_params(labelsize=14)
+        ax3.set_ylabel('$\mathregular{\chi^2}$', fontsize=14, color=plt3.get_color(), labelpad=3)
+        ax4.set_ylabel('$\mathregular{CC_{1/2}}$', fontsize=14, color=plt4.get_color(), labelpad=3)
+
+        h3, l3 = ax3.get_legend_handles_labels()
+        h4, l4 = ax4.get_legend_handles_labels()
+        ha += h3 + h4
+        la += l3 + l4
+        bbox_to_anchor, ncol = [.12, 1.02], 4
+    except:
+        pass
+
+    lgd1 = ax1.legend(ha, la, bbox_to_anchor=bbox_to_anchor, loc=3, ncol=ncol, fontsize=14)
     plt.savefig(png_file, bbox_extra_artists=(lgd1, ), bbox_inches='tight')
     plt.close()
 
@@ -80,7 +106,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
             cc_weak_sg.extend(cc_weak)
 
             tmp_ax.scatter(cc_all, cc_weak, c=color, s=5, label=spacegroup, lw=0, alpha=0.75)
-            textstr = 'HA : %s  Resol: %.2f$\mathsf{\AA}$' % (nsite, rlimit)
+            textstr = 'HA : %s  Resol: %.2f$\mathregular{\AA}$' % (nsite, rlimit)
             tmp_ax.set_title(textstr, fontsize=10)
             if i == len(ano_rlimits) - 1:
                 tmp_ax.set_xlabel('CCall', fontsize=10)
@@ -178,7 +204,7 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
         ax2.plot(x, orig['mapcc'], lw=1, label=lb_orig, c=color)
         ax2.plot(x, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
 
-    plt.xlabel('Resolution / $\mathsf{\AA}$')
+    plt.xlabel('Resolution / $\mathregular{\AA}$')
     ax1.set_ylabel('<FOM>')
     ax2.set_ylabel('<mapCC>')
     ax1.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,p: orig['resol'][p]))
