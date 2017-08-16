@@ -10,20 +10,8 @@
 </PhasingProgramRun>
 
 <PhasingProgramAttachment>
-<fileType>log</fileType>
-<fileName>fast_ep.log</fileName>
-<filePath>{results_directory:s}</filePath>
-</PhasingProgramAttachment>
-
-<PhasingProgramAttachment>
-<fileType>graph</fileType>
-<fileName>sad.png</fileName>
-<filePath>{results_directory:s}</filePath>
-</PhasingProgramAttachment>
-
-<PhasingProgramAttachment>
-<fileType>graph</fileType>
-<fileName>sad_fa.png</fileName>
+<fileType>Logfile</fileType>
+<fileName>fastep_report.html</fileName>
 <filePath>{results_directory:s}</filePath>
 </PhasingProgramAttachment>
 
