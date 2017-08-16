@@ -76,7 +76,7 @@ from src.fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local,\
     read_shelxe_log
 from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
     hist_shelxd_cc, plot_shelxe_fom_mapcc, plot_shelxe_mean_fom_cc,\
-    plot_anom_shelxc
+    plot_anom_shelxc, plot_b64encoder
 from datetime import datetime
 
 
@@ -781,10 +781,17 @@ class Fast_ep:
                          'hand'         : self._best_hand,
                          'fastep_log'   : fastep_log
                          }
-        try:
-            render_html_report(template_dict)
-        except Exception, e:
-            logging.error("ERROR: Exception thrown while generating HTML summary.", exc_info=True)
+
+        summary_plots = ['shelxc_anom.png',
+                         'shelxd_cc_best.png',
+                         'hist_shelxd_cc.png',
+                         'sad_best.png',
+                         'mean_fom_cc.png',
+                         'shelxd_cc.png',
+                         'sad.png',
+                         'fom_mapcc.png']
+        template_dict.update(plot_b64encoder(summary_plots))
+        render_html_report(template_dict)
 
         return
 

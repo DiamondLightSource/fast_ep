@@ -243,3 +243,15 @@ def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
 
     plt.savefig(png_file, bbox_extra_artists=(lgd1, ), bbox_inches='tight')
     plt.close()
+
+
+def plot_b64encoder(plot_list):
+    '''Encode image to embed into HTML summary'''
+
+    res = {}
+    for plt in plot_list:
+        enc_data = open(plt, 'rb').read().encode('base64').replace('\n', '')
+        tag,_ = os.path.splitext(plt)
+        res[tag] = enc_data
+
+    return res
