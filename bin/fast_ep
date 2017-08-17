@@ -1,12 +1,17 @@
 #!/bin/bash
 
+# matplotlib sets off boost fpe...
+export BOOST_ADAPTBX_FPE_DEFAULT=1
+export BOOST_ADAPTBX_SIGNALS_DEFAULT=1
+
 full_path="$(cd "${0%/*}" 2>/dev/null; echo "$PWD"/"${0##*/}")"
 export FAST_EP_ROOT=`dirname "$full_path" | sed 's/\/bin$//'`
 
 cctbx.python ${FAST_EP_ROOT}/src/fast_ep.py $@
 
+if [ -f sad.mtz ]; then
 cat > coot.sh << eof
 module load ccp4
 coot --python -c 'make_and_draw_map("sad.mtz", "F", "PHI", "/HKL_base/HKL_base/FOM", 1, 0)' --no-guano
 eof
-
+fi
