@@ -389,7 +389,7 @@ class Fast_ep:
 
         logging.info('SHELXC summary:')
         if 'cc12' in table and 'chi2' in table:
-            logging.info('Dmin  <I/sig>  Chi^2  %comp  CC(1/2)  <d"/sig>')
+            logging.info('Dmin  <I/sig>  Chi^2  %comp  CC(anom) <d"/sig>')
             for j in range(shells):
                 logging.info('%5.2f  %6.2f %6.2f  %6.2f  %6.2f  %5.2f' %
                         (table['dmin'][j], table['isig'][j], table['chi2'][j],

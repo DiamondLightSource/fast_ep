@@ -65,12 +65,12 @@ def plot_anom_shelxc(resol, isig, dsig, chi2, cc12, png_file):
 
     try:
         plt3, = ax3.plot(x, chi2, lw=1, label='$\mathregular{\chi^2}$', c='c')
-        plt4, = ax4.plot(x, cc12, lw=1, label='$\mathregular{CC_{1/2}}$', c='g')
+        plt4, = ax4.plot(x, cc12, lw=1, label='$\mathregular{CC_{anom}}$', c='g')
 
         ax3.tick_params(labelsize=14)
         ax4.tick_params(labelsize=14)
         ax3.set_ylabel('$\mathregular{\chi^2}$', fontsize=14, color=plt3.get_color(), labelpad=3)
-        ax4.set_ylabel('$\mathregular{CC_{1/2}}$', fontsize=14, color=plt4.get_color(), labelpad=3)
+        ax4.set_ylabel('$\mathregular{CC_{anom}}$', fontsize=14, color=plt4.get_color(), labelpad=3)
 
         h3, l3 = ax3.get_legend_handles_labels()
         h4, l4 = ax4.get_legend_handles_labels()
