@@ -41,10 +41,10 @@ def plot_anom_shelxc(resol, isig, dsig, chi2, cc12, png_file):
     ax2 = ax1.twinx()
     if chi2:
         ax3 = ax1.twinx()
-        ax3.spines["right"].set_position(("axes", 1.1))
+        ax3.spines["right"].set_position(("axes", 1.12))
     if cc12:
         ax4 = ax1.twinx()
-        ax4.spines["right"].set_position(("axes", 1.2))
+        ax4.spines["right"].set_position(("axes", 1.25))
 
     x = range(len(resol))
     plt1, = ax1.plot(x, isig, lw=1, label='$\mathregular{<I/\sigma>}$', c='r')
@@ -147,7 +147,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
         x_pos = [x + offset for x in range(len(x_vals))]
         for idx, col in enumerate(cols):
             x, y = divmod(idx, rows)
-            axarr[y,x].bar(x_pos, y_vals[col], width=width, color=color, label=sg, alpha=0.75)
+            axarr[y,x].bar(x_pos, y_vals[col], width=width, color=color, edgecolor='k', label=sg, alpha=0.75)
             axarr[y,x].set_title(plt_labels[col], fontsize=12)
             if y == 1 and i == len(spacegroups)/2:
                 axarr[y,x].set_xticks(x_pos)
@@ -226,12 +226,12 @@ def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
     x = range(len(solv_axis))
     ax1.plot(x, fom_orig, lw=1, label='Est.<FOM> Orig.', c='r')
     ax1.plot(x, fom_inv, ls='dashed', label='Inv.', lw=1, c='r')
-    ax2.plot(x, mapcc_orig, lw=1, label='pseudo-free CC Orig.', c='b')
+    ax2.plot(x, mapcc_orig, lw=1, label='Pseudo-free CC Orig.', c='b')
     ax2.plot(x, mapcc_inv, ls='dashed', label='Inv.', lw=1, c='b')
 
     ax1.set_xlabel('Solvent content', fontsize=14)
     ax1.set_ylabel('Est.<FOM>', fontsize=14)
-    ax2.set_ylabel('pseudo-free CC', fontsize=14)
+    ax2.set_ylabel('Pseudo-free CC', fontsize=14)
 
     plt.xticks(x, solv_axis)
     ax1.tick_params(labelsize=14)
