@@ -377,14 +377,13 @@ def log_rank_table(ranks, spacegroups, best_sg):
     cols = ['CCall', 'CCweak', 'CFOM', 'CCres']
     for sg in spacegroups:
         cc_rank, ccweak_rank, cfom_rank, normcc_rank = [ranks[sg][col] for col in cols]
-        rcc_rank, rccweak_rank, rcfom_rank, rnormcc_rank = map(round, [ranks[sg][col] for col in cols])
-        log_pattern = '%8s  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d'
+        log_pattern = '%8s  %6.2f|%2.f %6.2f|%2.f %6.2f|%2.f %6.2f|%2.f'
         if sg == best_sg:
             log_pattern += '  (best)'
-        logging.info(log_pattern % (sg, normcc_rank, rnormcc_rank,
-                           cc_rank, rcc_rank,
-                           ccweak_rank, rccweak_rank,
-                           cfom_rank, rcfom_rank))
+        logging.info(log_pattern % (sg, normcc_rank, normcc_rank,
+                           cc_rank, cc_rank,
+                           ccweak_rank, ccweak_rank,
+                           cfom_rank, cfom_rank))
     logging.info('----------------------------------------------------')
 
 
