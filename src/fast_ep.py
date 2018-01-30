@@ -111,6 +111,8 @@ fast_ep {
     .type = floats(value_min=0)
   xml = ''
     .type = str
+  json = ''
+    .type = str
   mode = *basic advanced
     .help = "fast_ep operation setting"
     .type = choice
@@ -160,6 +162,9 @@ fast_ep {
     def get_xml(self):
         return self._parameters.fast_ep.xml
 
+    def get_json(self):
+        return self._parameters.fast_ep.json
+
     def get_trace(self):
         return self._parameters.fast_ep.trace
 
@@ -192,6 +197,7 @@ class Fast_ep:
         self._spacegroups = [_parameters.get_spg(),] if _parameters.get_spg() else None
         self._nsites = [_parameters.get_nsites(),] if _parameters.get_nsites() else None
         self._xml_name = _parameters.get_xml()
+        self._json_name = _parameters.get_json()
         self._start_time = datetime.now().strftime("%c")
 
         if self._machines == 1:
@@ -813,6 +819,48 @@ class Fast_ep:
         except ImportError, e:
             pass
 
+
+    def write_json(self):
+        if self._json_name == '':
+            return
+        self._ispyb_data = {}
+        self._ispyb_data['PhasingProgramRun'] = {'phasingCommandLine': self._full_command_line,
+                                                 'phasingPrograms': 'fast_ep',
+                                                 'phasingStatus': 1}
+        self._ispyb_data['PhasingProgramAttachment'] = {'fileType': 'Logfile',
+                                                        'filename': 'fastep_report.html',
+                                                        'filepath': self._wd}
+        self._ispyb_data['Phasing'] = {'spaceGroupId': self._xml_results['SPACEGROUP'],
+                                       'method': 'shelxe',
+                                       'solventContent': self._xml_results['SOLVENTCONTENT'],
+                                       'enantiomorph': self._xml_results['ENANTIOMORPH'],
+                                       'lowRes': self._xml_results['LOWRES'],
+                                       'highRes': self._xml_results['HIGHRES']}
+        self._ispyb_data['PreparePhasingData'] = {'spaceGroupId': self._xml_results['SHELXC_SPACEGROUP_ID'],
+                                                  'lowRes': self._xml_results['LOWRES'],
+                                                  'highRes': self._xml_results['HIGHRES']}
+        self._ispyb_data['SubstructureDetermination'] = {'spaceGroupId': self._xml_results['SPACEGROUP'],
+                                                         'method': self._xml_results['SUBSTRUCTURE_METHOD'],
+                                                         'lowRes': self._xml_results['LOWRES'],
+                                                         'highRes': self._xml_results['HIGHRES']}
+        self._ispyb_data['PhasingStatistics'] = []
+        numberOfBins = len([k for k in self._xml_results.keys() if 'NREFLECTIONS' in k])
+        for metric in ('FOM', 'MAPCC'):
+            for bin_number in range(numberOfBins):
+                bin_number_name = str(bin_number).zfill(2)
+                bin_data = {'numberOfBins': numberOfBins,
+                            'binNumber': bin_number + 1,
+                            'lowRes': float(self._xml_results['RESOLUTION_LOW' + bin_number_name]),
+                            'highRes': float(self._xml_results['RESOLUTION_HIGH' + bin_number_name]),
+                            'metric': metric,
+                            'statisticsValue': float(self._xml_results[metric + bin_number_name]),
+                            'nReflections': int(self._xml_results['NREFLECTIONS' + bin_number_name])
+                           }
+                self._ispyb_data['PhasingStatistics'].append(bin_data)
+        filename = os.path.join(self._wd, self._json_name)
+        with open(filename, 'w') as f:
+            json.dump(self._ispyb_data, f, sort_keys=True, indent=2, separators=(',', ': '))
+
 if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     try:
@@ -844,8 +892,8 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
-        fast_ep.write_results()
+        fast_ep.write_json()
     except Exception, e:
-        logging.error('*** FINISH %s ***' % str(e))
+        logging.error('*** WRITE_JSON %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
