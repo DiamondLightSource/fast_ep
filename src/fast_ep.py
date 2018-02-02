@@ -648,7 +648,7 @@ class Fast_ep:
         wd = os.path.join(self._wd, skey(best_solvent))
 
         best_fom_mapcc = shelxe_stats['fom_mapcc'][skey(best_solvent)][best_hand]
-        parse_pairs = [([self._dmin,] + best_fom_mapcc['resol'][:-1], 'RESOLUTION_LOW'),
+        parse_pairs = [([self._dmax,] + best_fom_mapcc['resol'][:-1], 'RESOLUTION_LOW'),
                        (best_fom_mapcc['resol'], 'RESOLUTION_HIGH'),
                        (best_fom_mapcc['fom'], 'FOM'),
                        (best_fom_mapcc['mapcc'], 'MAPCC'),
