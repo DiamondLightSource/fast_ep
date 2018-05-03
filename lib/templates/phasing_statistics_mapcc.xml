@@ -3,7 +3,7 @@
 <binNumber>{bin_number:d}</binNumber>
 <lowRes>{bin_low_res:f}</lowRes>
 <highRes>{bin_high_res:f}</highRes>
-<metric>mapCC</metric>
+<metric>Pseudo_free_CC</metric>
 <statisticsValue>{bin_map_cc:f}</statisticsValue>
 <nReflections>{num_refl:d}</nReflections>
 </PhasingStatistics>
