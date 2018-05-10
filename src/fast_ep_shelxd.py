@@ -100,12 +100,7 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout):
         job.remoteCommand = 'sh'
         args = [script_path,]
         job.args = args
-
-        if os.environ.get('USER', '') == 'gda2' and timeout < 1200:
-            job.jobCategory = 'high'
-        else:
-            job.jobCategory = 'medium'
-
+        job.jobCategory = 'medium'
         job.nativeSpecification = '-V -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o /dev/null -e /dev/null'.format(timeout=timeout,
                                                                                            njobs=njobs,
                                                                                            ncpu=ncpu)

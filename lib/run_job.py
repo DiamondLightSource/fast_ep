@@ -85,10 +85,7 @@ def run_job_cluster(executable, arguments = [], stdin = [],
     else:
         timeout_tokens = []
 
-    if os.environ.get('USER', '') == 'gda2':
-        queue = 'high.q'
-    else:
-        queue = 'medium.q'
+    queue = 'medium.q'
 
     if ncpu > 1:
         qsub_output = run_job(
@@ -160,8 +157,4 @@ def setup_job_drmaa(job, executable, arguments = [], stdin = [],
         qsub_args += ['-pe', 'smp', str(ncpu)]
 
     job.nativeSpecification = ' '.join(qsub_args)
-
-    if os.environ.get('USER', '') == 'gda2':
-        job.jobCategory = 'high'
-    else:
-        job.jobCategory = 'medium'
+    job.jobCategory = 'medium'
