@@ -71,7 +71,7 @@ def run_shelxd_drmaa(njobs, job_settings):
     return
 
 
-def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout):
+def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout, sge_project):
     '''Run shelxd on cluster with settings given in dictionary, containing:
 
     nrefl = 1 + floor(nref / 100000) - space to allocate
@@ -101,9 +101,14 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout):
         args = [script_path,]
         job.args = args
         job.jobCategory = 'medium'
-        job.nativeSpecification = '-V -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o /dev/null -e /dev/null'.format(timeout=timeout,
-                                                                                           njobs=njobs,
-                                                                                           ncpu=ncpu)
+        if sge_project:
+            proj = '-P {}'.format(sge_project)
+        else:
+            proj = ''
+        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o /dev/null -e /dev/null'.format(proj=proj,
+                                                                                        timeout=timeout,
+                                                                                        njobs=njobs,
+                                                                                        ncpu=ncpu)
 
         job_ids = session.runBulkJobs(job, 1, len(job_settings), 1)
         session.synchronize(job_ids, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)

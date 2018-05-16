@@ -113,11 +113,13 @@ fast_ep {
     .type = str
   json = ''
     .type = str
+  trace = False
+    .type = bool
   mode = *basic advanced
     .help = "fast_ep operation setting"
     .type = choice
-  trace = False
-    .type = bool
+  sge_project = None
+    .type = str
 }
 """ % introspection.number_of_processors(return_value_if_unknown = 1))
         argument_interpreter = self._phil.command_line_argument_interpreter(
@@ -171,6 +173,9 @@ fast_ep {
     def get_mode(self):
         return self._parameters.fast_ep.mode
 
+    def get_sge_project(self):
+        return self._parameters.fast_ep.sge_project
+
 class Fast_ep:
     '''A class to run shelxc / d / e to very quickly establish (i) whether
     experimental phasing is likely to be successful and (ii) what the
@@ -193,6 +198,7 @@ class Fast_ep:
         self._ano_rlimits = _parameters.get_rlims()
         self._trace = _parameters.get_trace()
         self._mode = _parameters.get_mode()
+        self._sge_project = _parameters.get_sge_project()
         self._data = None
         self._spacegroups = [_parameters.get_spg(),] if _parameters.get_spg() else None
         self._nsites = [_parameters.get_nsites(),] if _parameters.get_nsites() else None
@@ -477,7 +483,7 @@ class Fast_ep:
         logging.info('Running %d x shelxd_mp jobs' % len(jobs))
 
         if cluster:
-            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout)
+            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout, self._sge_project)
         else:
             pool = Pool(min(njobs, len(jobs)))
             pool.map(run_shelxd_local, jobs)
@@ -602,7 +608,7 @@ class Fast_ep:
 
 
         if cluster:
-            run_shelxe_drmaa_array(self._wd, njobs, jobs, timeout)
+            run_shelxe_drmaa_array(self._wd, njobs, jobs, timeout, self._sge_project)
         else:
             pool = Pool(min(njobs * ncpu, len(jobs)))
             pool.map(run_shelxe_local, jobs)

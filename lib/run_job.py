@@ -53,7 +53,7 @@ def run_job(executable, arguments = [], stdin = [], working_directory = None):
     return output
 
 def run_job_cluster(executable, arguments = [], stdin = [],
-                    working_directory = None, ncpu = 1, timeout = None):
+                    working_directory = None, ncpu = 1, timeout = None, sge_project=None):
     '''Run a program with some command-line arguments and some input,
     then return the standard output when it is finished.'''
 
@@ -85,17 +85,22 @@ def run_job_cluster(executable, arguments = [], stdin = [],
     else:
         timeout_tokens = []
 
+    if sge_project:
+        project_tokens = ['-P %s' % sge_project]
+    else:
+        project_tokens = []
+
     queue = 'medium.q'
 
     if ncpu > 1:
         qsub_output = run_job(
-            'qsub', timeout_tokens + ['-V', '-pe', 'smp', str(ncpu),
+            'qsub', timeout_tokens + project_tokens + ['-V', '-pe', 'smp', str(ncpu),
                                       '-l', 'release="*"',
                                       '-cwd', '-q', queue,
                                       'FEP_%s.sh' % rs], [], working_directory)
     else:
         qsub_output = run_job(
-            'qsub', timeout_tokens + ['-V', '-cwd', '-q', queue,
+            'qsub', timeout_tokens + project_tokens + ['-V', '-cwd', '-q', queue,
                                       'FEP_%s.sh' % rs], [], working_directory)
 
     if 'Unable to run job' in qsub_output[0]:

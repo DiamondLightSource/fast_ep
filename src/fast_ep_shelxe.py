@@ -83,7 +83,7 @@ def run_shelxe_drmaa(njobs, job_settings):
     return
 
 
-def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout):
+def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout, sge_project):
     '''Run shelxe on cluster with settings given in dictionary, containing:
 
     nsite - number of sites
@@ -122,8 +122,13 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout):
         args = [script_path,]
         job.args = args
         job.jobCategory = 'medium'
-        job.nativeSpecification = '-V -l h_rt={timeout} -tc {njobs}  -o /dev/null -e /dev/null'.format(timeout=timeout,
-                                                                                                       njobs=njobs)
+        if sge_project:
+            proj = '-P {}'.format(sge_project)
+        else:
+            proj = ''
+        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -tc {njobs}  -o /dev/null -e /dev/null'.format(proj=proj,
+                                                                                                    timeout=timeout,
+                                                                                                    njobs=njobs)
 
         job_ids = session.runBulkJobs(job, 1, len(job_settings), 1)
         session.synchronize(job_ids, drmaa.Session.TIMEOUT_WAIT_FOREVER, True)
