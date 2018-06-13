@@ -13,6 +13,21 @@
 <fileType>Logfile</fileType>
 <fileName>fastep_report.html</fileName>
 <filePath>{results_directory:s}</filePath>
+<recordTimeStamp>{time_stamp:s}</recordTimeStamp>
+</PhasingProgramAttachment>
+
+<PhasingProgramAttachment>
+<fileType>Map</fileType>
+<fileName>sad.mtz</fileName>
+<filePath>{results_directory:s}</filePath>
+<recordTimeStamp>{time_stamp:s}</recordTimeStamp>
+</PhasingProgramAttachment>
+
+<PhasingProgramAttachment>
+<fileType>PDB</fileType>
+<fileName>sad.pdb</fileName>
+<filePath>{results_directory:s}</filePath>
+<recordTimeStamp>{time_stamp:s}</recordTimeStamp>
 </PhasingProgramAttachment>
 
 <Phasing>
