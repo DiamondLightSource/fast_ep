@@ -163,6 +163,33 @@ def run_shelxe_local(_settings):
     return
 
 
+def parse_shelxe_log(lst):
+
+    contrast = []
+    fom_mapcc = {}
+    mean_fom_mapcc = {'mean_fom': float('nan'),
+                      'pseudo_cc': float('nan')}
+
+    for record in open(lst):
+        if 'Contrast' in record and 'Connect' in record:
+            tokens = record.replace(',', ' ').split()
+            contrast.append(float(tokens[5]))
+        elif 'Estimated mean FOM =' in record:
+            mean_fom = float(record.split()[4])
+            pseudo_cc = float(record.split()[-2]) / 100.
+            mean_fom_mapcc = {'mean_fom': mean_fom,
+                              'pseudo_cc': pseudo_cc}
+        else:
+            for lbl, k, stat in [('d    inf', ' - ', 'resol'),
+                                ('<FOM>', None, 'fom'),
+                                ('<mapCC>', None, 'mapcc'),
+                                ('N      ', None, 'nrefl')]:
+                if lbl in record:
+                    fom_mapcc[stat] = [float(s) for s in record.split(k)[1:]]
+
+    return contrast, fom_mapcc, mean_fom_mapcc
+
+
 def read_shelxe_log(pth, solvent_fractions):
 
     res = {'contrast': {},
@@ -178,26 +205,9 @@ def read_shelxe_log(pth, solvent_fractions):
         for hand, lst in [('original', os.path.join(wd, 'sad.lst'),),
                           ('inverted', os.path.join(wd, 'sad_i.lst'))]:
 
-            contrast = []
-            fom_mapcc = {}
-
-            for record in open(lst):
-                if 'Contrast' in record and 'Connect' in record:
-                    tokens = record.replace(',', ' ').split()
-                    contrast.append(float(tokens[5]))
-                elif 'Estimated mean FOM =' in record:
-                    mean_fom = float(record.split()[4])
-                    pseudo_cc = float(record.split()[-2]) / 100.
-                    res['mean_fom_cc'][solv_key][hand] = {'mean_fom': mean_fom,
-                                                          'pseudo_cc': pseudo_cc}
-                else:
-                    for lbl, k, lst in [('d    inf', ' - ', 'resol'),
-                                        ('<FOM>', None, 'fom'),
-                                        ('<mapCC>', None, 'mapcc'),
-                                        ('N      ', None, 'nrefl')]:
-                        if lbl in record:
-                            fom_mapcc[lst] = [float(s) for s in record.split(k)[1:]]
+            contrast, fom_mapcc, mean_fom_mapcc = parse_shelxe_log(lst)
             res['contrast'][solv_key][hand] = contrast
             res['fom_mapcc'][solv_key][hand] = fom_mapcc
+            res['mean_fom_cc'][solv_key][hand] = mean_fom_mapcc
 
     return res
