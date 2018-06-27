@@ -416,14 +416,19 @@ class Fast_ep:
                         table['comp'][j], table['dsig'][j]))
             plot_anom_shelxc(table['dmin'], table['isig'], table['dsig'], None, None, 'shelxc_anom.png')
 
-        # FIXME conventionally dmax is the *low* resolution limit!
         if self._ano_rlimits == [0]:
             self._ano_rlimits = [self._dmin]
         elif not self._ano_rlimits:
             if self._mode == 'basic':
                 self._ano_rlimits = [self._dmin]
             else:
-                self._ano_rlimits = [self._dmin, self._dmin + 0.25, self._dmin + 0.5]
+                min_data, min_dmin = min([(dt, dt.d_min()) for dt in self._all_data], key=lambda tpl: tpl[1])
+                d_star_sq_step = 1./ (12. * min_dmin ** 2)
+                min_data.setup_binner_d_star_sq_step(d_star_sq_step=d_star_sq_step)
+                bin_ranges = [min_data.binner().bin_d_range(i_bin)[0] for i_bin in min_data.binner().range_all()]
+                self._ano_rlimits = [bin_ranges[i] for i in [-2, -4, -6] if bin_ranges[i] < 5.0]
+                if not self._ano_rlimits:
+                    self._ano_rlimits = [self._dmin]
 
         logging.info('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
 
