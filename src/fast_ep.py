@@ -71,7 +71,8 @@ from lib.run_job import run_job
 from src.fast_ep_helpers import modify_ins_text, useful_number_sites
 from src.fast_ep_shelxd import get_shelxd_results, get_average_ranks, \
      log_rank_table, log_shelxd_results, run_shelxd_drmaa_array,\
-    run_shelxd_local, get_shelxd_result_ranks, log_shelxd_results_advanced
+    run_shelxd_local, get_shelxd_result_ranks, log_shelxd_results_advanced,\
+    get_substruct_matches, select_substructure, write_shelxd_substructure
 from src.fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local,\
     read_shelxe_log
 from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
@@ -490,27 +491,43 @@ class Fast_ep:
 
         # now gather up all of the results, find the one with best cfom
 
-        results = get_shelxd_results(self._wd,
-                                     self._spacegroups,
-                                     self._nsites,
-                                     self._ano_rlimits,
-                                     self._mode == 'advanced')
-        if self._mode == 'basic':
-            best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0), results.iteritems()),
-                                        key=lambda (k, v): v['CFOM'])
-        else:
+        results, substructs = get_shelxd_results(self._wd,
+                                             self._spacegroups,
+                                             self._nsites,
+                                             self._ano_rlimits,
+                                             self._mode == 'advanced')
+        best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if v['nsites'] > 0],
+                                        key=lambda (_, v): v['CFOM'])
+        if self._mode == 'advanced':
             result_ranks = get_shelxd_result_ranks(results,
                                                    self._spacegroups,
                                                    self._nsites,
                                                    self._ano_rlimits)
             aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
-            best_sg, _ = min(filter(lambda (_, v): reduce(and_, (not isnan(x) for x in v.values())),
-                                    aver_ranks.iteritems()),
+            #pprint(aver_ranks)
+            try:
+                best_sg, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
+                               if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
                              key=lambda (_, v): min(v.values()))
+            except ValueError:
+                pass
 
-            best_keys, best_stats = max(filter(lambda (k, v): (v['nsites'] > 0) and (k[0] == best_sg),
-                                           results.iteritems()),
-                                    key=lambda (k, v): v['CCres'])
+            substruct_matches = get_substruct_matches(substructs,
+                                                   self._spacegroups,
+                                                   self._nsites,
+                                                   self._ano_rlimits)
+            try:
+                best_keys, best_substructure = select_substructure(substructs,
+                                                         substruct_matches,
+                                                         self._nsites,
+                                                         self._ano_rlimits)
+                write_shelxd_substructure(self._wd, best_substructure)
+                best_stats = results[best_keys]
+                #best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems()
+                #                            if (v['nsites'] > 0) and (k[0] == best_sg)],
+                #                        key=lambda (_, v): v['CCres'])
+            except ValueError:
+                pass
             log_rank_table(aver_ranks, self._spacegroups, best_sg)
 
         (best_spacegroup,
@@ -898,8 +915,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
+        fast_ep.write_results()
         fast_ep.write_json()
     except Exception, e:
-        logging.error('*** WRITE_JSON %s ***' % str(e))
+        logging.error('*** WRITE_RESULTS %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)

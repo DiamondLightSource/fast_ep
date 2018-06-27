@@ -7,17 +7,23 @@
 # of a dictionary with the name of the "problem" we're working on and the
 # number of reflections to make room for.
 
+from itertools import product, combinations
+import logging
 import os
 import time
-import logging
-import scipy.stats
+
 import numpy as np
-import iotbx.pdb
-from iotbx.shelx import hklf, crystal_symmetry_from_ins
-from itertools import product
+import scipy.stats
+
+from cctbx import euclidean_model_matching as emma
 from cctbx.sgtbx import space_group_symbols
+import iotbx.pdb
+from iotbx.shelx import hklf, crystal_symmetry_from_ins,\
+    cctbx_xray_structure_from
+from iotbx.shelx.writer import generator
 
 from lib.run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
+from pprint import pformat
 
 
 def run_shelxd_cluster(_settings):
@@ -88,8 +94,7 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout, sge_pr
 
         script.write('TASK_WORKING_DIR=WORKING_DIR_${SGE_TASK_ID}\n')
         script.write('cd ${!TASK_WORKING_DIR}\n')
-        script.write('shelxd -L{nrefl} sad_fa -t{ncpu} > ${{!TASK_WORKING_DIR}}/FEP_shelxd.out  2> ${{!TASK_WORKING_DIR}}/FEP_shelxd.err\n'.format(idx=idx,
-                                                                 nrefl=nrefl,
+        script.write('shelxd -L{nrefl} sad_fa -t{ncpu} > ${{!TASK_WORKING_DIR}}/FEP_shelxd.out  2> ${{!TASK_WORKING_DIR}}/FEP_shelxd.err\n'.format(nrefl=nrefl,
                                                                  ncpu=ncpu))
 
     import drmaa
@@ -211,18 +216,33 @@ def happy_shelxd_log(_shelxd_lst_file):
     return True
 
 
-def get_shelxd_results(pth, spacegroups, nsites, ano_rlimits, advanced=False):
+def read_shelxd_substructure(_shelxd_res_file):
+    '''Read SHELXD substructure model ignoring atoms at special positions
+    and with low occupancy'''
+    res_model = cctbx_xray_structure_from(None, filename=_shelxd_res_file)
+    spos_idx = [idx for idx,_ in enumerate(res_model.scatterers())
+                    if idx not in res_model.special_position_indices()]
+    spos_sel = res_model.by_index_selection(spos_idx)
+    nonsp_model = res_model.select(spos_sel)
+    occ = nonsp_model.scatterers().extract_occupancies()
+    return nonsp_model.select(occ>0.3)
 
-    results = { }
+
+def get_shelxd_results(pth, spacegroups, nsites, ano_rlimits, advanced=False):
+    '''Parse SHELXD logs and read supstructure models'''
+    results = {}
+    models = {}
     for spacegroup in spacegroups:
         for nsite in nsites:
             for rlimit in ano_rlimits:
                 wd = os.path.join(pth, spacegroup.replace(':', '-'), str(nsite), "%.2f" % rlimit)
                 shelxd_log = os.path.join(wd, 'sad_fa.lst')
+                shelxd_res = os.path.join(wd, 'sad_fa.res')
                 if happy_shelxd_log(shelxd_log):
                     results[(spacegroup, nsite, rlimit)] = analyse_res(wd)
                     if advanced:
                         results[(spacegroup, nsite, rlimit)].update(get_advanced_stats(wd))
+                        models[(spacegroup, nsite, rlimit)] = read_shelxd_substructure(shelxd_res)
                 else:
                     results[(spacegroup, nsite, rlimit)] = {'CCall' : -np.inf,
                                                             'CCweak': -np.inf,
@@ -230,8 +250,93 @@ def get_shelxd_results(pth, spacegroups, nsites, ano_rlimits, advanced=False):
                                                             'nsites': 0}
                     if advanced:
                         results[(spacegroup, nsite, rlimit)].update({'CCres': -np.inf})
+                        models[(spacegroup, nsite, rlimit)] = None
+    return results, models
 
-    return results
+
+def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
+    '''Run EMMA on all pairs of substructure models found for different HA number/resolution
+    combinations for the given space group'''
+    ha_dict = {}
+    for spgr in spacegroups:
+        sbm = [substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)]
+        ha_dict[spgr] = [[0] * len(mod.scatterers()) for mod in sbm]
+        for idx1, idx2 in combinations(range(len(sbm)), 2):
+            em1, em2 = sbm[idx1], sbm[idx2]
+            emma_matches = emma.model_matches(em1.as_emma_model(),
+                                              em2.as_emma_model(),
+                                              tolerance=0.5,
+                                              break_if_match_with_no_singles=False)
+            try:
+                best_match = next(iter(emma_matches.refined_matches))
+                for ha_em1, ha_em2 in best_match.pairs:
+                    ha_dict[spgr][idx1][ha_em1] += 1
+                    ha_dict[spgr][idx2][ha_em2] += 1
+            except StopIteration:
+                continue
+    return ha_dict
+
+
+def analyse_substructure(ha_list, thres):
+    '''Select SHELXD substructure with the highest number of scatterer matches'''
+    matched_list = [sorted(mod, reverse=True) for mod in ha_list if mod]
+    idx_list = [len([nd for nd in mod if nd > thres]) for mod in ha_list]
+    rank_dict = [(i, n_match) for i, (n_match, n_idx) in enumerate(zip(matched_list, idx_list)) if n_idx > 0]
+    idx_best_score, max_found_ha = max(rank_dict, key=lambda x:x[1])
+    return idx_best_score, max_found_ha, matched_list
+
+
+def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
+    '''Select substructure model most consistently found in SHELXD results'''
+    nsites_resol_list = list(product(nsites, ano_rlimits))
+    n_models = len(nsites)
+    thres = max(3, 2 * n_models / 3 - 1)
+    solutions = {}
+    for spgr, ha_list in ha_dict.iteritems():
+        try:
+            idx_best_score, max_found_ha, matched_list = analyse_substructure(ha_list, thres)
+            found_ha = [i for i,v in enumerate(ha_list[idx_best_score]) if v]
+            best_nsites, best_rlim = nsites_resol_list[idx_best_score]
+            ha_selection = substruct_dict[(spgr, best_nsites, best_rlim)].by_index_selection(found_ha)
+            found_model = substruct_dict[(spgr, best_nsites, best_rlim)].select(ha_selection)
+            solutions[spgr] = {'nsites': best_nsites,
+                               'rlim': best_rlim,
+                               'found_nsites': len(found_model.scatterers()),
+                               'substructure':found_model,
+                               'max_found_ha': max_found_ha,
+                               'matched_list': matched_list}
+        except ValueError:
+            continue
+    best_sg = max(solutions, key=lambda k: (solutions[k]['max_found_ha'],
+                                            solutions[k]['found_nsites']))
+    best_nsites = solutions[best_sg]['nsites']
+    best_rlim = solutions[best_sg]['rlim']
+    best_substructure = solutions[best_sg]['substructure']
+
+    print_substructure_results(solutions, nsites_resol_list)
+
+    return (best_sg, best_nsites, best_rlim), best_substructure
+
+
+def print_substructure_results(solutions, nsites_resol_list):
+    logging.info('Substructure EMMA matching summary-----------------------')
+    logging.debug(pformat(dict([(spgr, zip(nsites_resol_list, sol['matched_list'])) for spgr, sol in solutions.items()])))
+    logging.info('{:>8} {:>8} {:>4}   {:<12}'.format('Spgr', 'Res.', 'No.', 'HA matches'))
+    for spgr, vals in solutions.items():
+            logging.info('{:>8} {:>8.2f} {:>4}   {:<12}'.format(spgr,
+                                                                vals['rlim'],
+                                                                vals['nsites'],
+                                                                vals['max_found_ha']))
+
+
+def write_shelxd_substructure(wd, substruct):
+    '''Write substructure model from EMMA matching results'''
+    pth = os.path.join(wd, 'sad_fa.res')
+    with open(pth,'w') as fp:
+        for line in generator(substruct, False, 'sad_fa.ins SAD',
+                              full_matrix_least_squares_cycles=0):
+            fp.write(line)
+
 
 def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
     result_ranks = {}
@@ -372,7 +477,7 @@ def shelxd_cc_all(pdb_sub, fa_file, fa_ins, d_min, n_bins):
 
 def log_rank_table(ranks, spacegroups, best_sg):
 
-    logging.info('SHELXD solution rank averages-----------------------')
+    logging.info('SHELXD solution rank averages----------------------------')
     logging.info('    Spgr     CCres     CCall    CCweak     CFOM')
     cols = ['CCall', 'CCweak', 'CFOM', 'CCres']
     for sg in spacegroups:
@@ -380,11 +485,11 @@ def log_rank_table(ranks, spacegroups, best_sg):
         log_pattern = '%8s  %6.2f|%2.f %6.2f|%2.f %6.2f|%2.f %6.2f|%2.f'
         if sg == best_sg:
             log_pattern += '  (best)'
-        logging.info(log_pattern % (sg, normcc_rank, normcc_rank,
+        logging.info(log_pattern, sg, normcc_rank, normcc_rank,
                            cc_rank, cc_rank,
                            ccweak_rank, ccweak_rank,
-                           cfom_rank, cfom_rank))
-    logging.info('----------------------------------------------------')
+                           cfom_rank, cfom_rank)
+    logging.info('---------------------------------------------------------')
 
 
 
@@ -393,32 +498,32 @@ def log_shelxd_results(results, spacegroups, best_keys, xml_results):
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
-            logging.info('Spacegroup: %s (best)' % spacegroup)
+            logging.info('Spacegroup: %s (best)', spacegroup)
             xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
         else:
-            logging.info('Spacegroup: %s' % spacegroup)
+            logging.info('Spacegroup: %s', spacegroup)
 
         logging.info('No.  Res.   CCall  CCweak CFOM  No. found')
         cols = ['CCall', 'CCweak', 'CFOM', 'nsites']
         for nsite in nsites:
             write_nsite = True
             for rlimit in ano_rlimits:
-                    (cc, cc_weak, cfom, nsite_real) = [results[(spacegroup, nsite, rlimit)][col] for col in cols]
-                    if write_nsite:
-                        log_pattern = '%3d  %.2f  %6.2f %6.2f %6.2f %3d'
-                    else:
-                        log_pattern = '     %.2f  %6.2f %6.2f %6.2f %3d'
-                    if (spacegroup, nsite, rlimit) == best_keys:
-                        log_pattern += ' (best)'
-                    if write_nsite:
-                        logging.info(log_pattern % (nsite, rlimit,
-                                           cc, cc_weak,
-                                           cfom, nsite_real))
-                    else:
-                        logging.info(log_pattern % (rlimit,
-                                           cc, cc_weak,
-                                           cfom, nsite_real))
-                    write_nsite = False
+                (cc, cc_weak, cfom, nsite_real) = [results[(spacegroup, nsite, rlimit)][col] for col in cols]
+                if write_nsite:
+                    log_pattern = '%3d  %.2f  %6.2f %6.2f %6.2f %3d'
+                else:
+                    log_pattern = '     %.2f  %6.2f %6.2f %6.2f %3d'
+                if (spacegroup, nsite, rlimit) == best_keys:
+                    log_pattern += ' (best)'
+                if write_nsite:
+                    logging.info(log_pattern, nsite, rlimit,
+                                       cc, cc_weak,
+                                       cfom, nsite_real)
+                else:
+                    logging.info(log_pattern, rlimit,
+                                       cc, cc_weak,
+                                       cfom, nsite_real)
+                write_nsite = False
 
 
 def log_shelxd_results_advanced(results, result_ranks, spacegroups, best_keys, xml_results):
@@ -427,10 +532,10 @@ def log_shelxd_results_advanced(results, result_ranks, spacegroups, best_keys, x
     _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
-            logging.info('Spacegroup: %s (best)' % spacegroup)
+            logging.info('Spacegroup: %s (best)', spacegroup)
             xml_results['SPACEGROUP'] = space_group_symbols(spacegroup).number()
         else:
-            logging.info('Spacegroup: %s' % spacegroup)
+            logging.info('Spacegroup: %s', spacegroup)
 
         logging.info('No.  Res.    CCres     CCall     CCweak    CFOM    No. found')
         cols = ['CCall', 'CCweak', 'CFOM', 'nsites', 'CCres']
@@ -438,22 +543,22 @@ def log_shelxd_results_advanced(results, result_ranks, spacegroups, best_keys, x
         for nsite in nsites:
             write_nsite = True
             for rlimit in ano_rlimits:
-                    (cc, cc_weak, cfom, nsite_real, norm_cc) = [results[(spacegroup, nsite, rlimit)][col] for col in cols]
-                    (rk_cc, rk_cc_weak, rk_cfom, rk_norm_cc) = [result_ranks[(spacegroup, nsite, rlimit)][col] for col in rk_cols]
-                    if write_nsite:
-                        log_pattern = '%3d  %.2f  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d %3d'
-                    else:
-                        log_pattern = '     %.2f  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d %3d'
-                    if (spacegroup, nsite, rlimit) == best_keys:
-                        log_pattern += ' (best)'
-                    if write_nsite:
-                        logging.info(log_pattern % (nsite, rlimit,
-                                           norm_cc, rk_norm_cc,
-                                           cc, rk_cc, cc_weak, rk_cc_weak,
-                                           cfom, rk_cfom, nsite_real))
-                    else:
-                        logging.info(log_pattern % (rlimit,
-                                           norm_cc, rk_norm_cc,
-                                           cc, rk_cc, cc_weak, rk_cc_weak,
-                                           cfom, rk_cfom, nsite_real))
-                    write_nsite = False
+                (cc, cc_weak, cfom, nsite_real, norm_cc) = [results[(spacegroup, nsite, rlimit)][col] for col in cols]
+                (rk_cc, rk_cc_weak, rk_cfom, rk_norm_cc) = [result_ranks[(spacegroup, nsite, rlimit)][col] for col in rk_cols]
+                if write_nsite:
+                    log_pattern = '%3d  %.2f  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d %3d'
+                else:
+                    log_pattern = '     %.2f  %6.2f|%2d %6.2f|%2d %6.2f|%2d %6.2f|%2d %3d'
+                if (spacegroup, nsite, rlimit) == best_keys:
+                    log_pattern += ' (best)'
+                if write_nsite:
+                    logging.info(log_pattern, nsite, rlimit,
+                                       norm_cc, rk_norm_cc,
+                                       cc, rk_cc, cc_weak, rk_cc_weak,
+                                       cfom, rk_cfom, nsite_real)
+                else:
+                    logging.info(log_pattern, rlimit,
+                                       norm_cc, rk_norm_cc,
+                                       cc, rk_cc, cc_weak, rk_cc_weak,
+                                       cfom, rk_cfom, nsite_real)
+                write_nsite = False
