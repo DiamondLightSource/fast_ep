@@ -72,7 +72,8 @@ from src.fast_ep_helpers import modify_ins_text, useful_number_sites
 from src.fast_ep_shelxd import get_shelxd_results, get_average_ranks, \
      log_rank_table, log_shelxd_results, run_shelxd_drmaa_array,\
     run_shelxd_local, get_shelxd_result_ranks, log_shelxd_results_advanced,\
-    get_substruct_matches, select_substructure, write_shelxd_substructure
+    get_substruct_matches, select_substructure, write_shelxd_substructure,\
+    setup_shelxd_job
 from src.fast_ep_shelxe import run_shelxe_drmaa_array, run_shelxe_local,\
     read_shelxe_log
 from src.fast_ep_plots import plot_shelxd_cc, plot_shelxe_contrast,\
@@ -432,12 +433,8 @@ class Fast_ep:
 
         logging.info('Anomalous limits: %s' %  ' '.join(["%.2f" % v for v in self._ano_rlimits]))
 
-        # store the ins file text - will need to modify this when we come to
-        # run shelxd...
-
-        self._ins_text = open('sad_fa.ins', 'r').readlines()
-
         return
+
 
     def find_sites(self):
         '''Actually perform the substructure calculation, using many runs of
@@ -466,21 +463,11 @@ class Fast_ep:
         # modify the instruction file (.ins) for the number of sites and
         # symmetry operations for each run
 
+        ins_text = open('sad_fa.ins', 'r').readlines()
         for spacegroup in self._spacegroups:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
-                    wd = os.path.join(self._wd, spacegroup.replace(':', '-'), str(nsite), "%.2f" % rlimit)
-                    if not os.path.exists(wd):
-                        os.makedirs(wd)
-
-                    new_text = modify_ins_text(self._ins_text, spacegroup, nsite, rlimit)
-
-                    shutil.copyfile(os.path.join(self._wd, 'sad_fa.hkl'),
-                                    os.path.join(wd, 'sad_fa.hkl'))
-
-                    open(os.path.join(wd, 'sad_fa.ins'), 'w').write(
-                        '\n'.join(new_text))
-
+                    wd = setup_shelxd_job(self._wd, (spacegroup, nsite, rlimit), ins_text)
                     jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
 
         # actually execute the tasks - either locally or on a cluster, allowing
@@ -501,21 +488,23 @@ class Fast_ep:
                                              self._nsites,
                                              self._ano_rlimits,
                                              self._mode == 'advanced')
-        best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if v['nsites'] > 0],
+        try:
+            best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if v['nsites'] > 0],
                                         key=lambda (_, v): v['CFOM'])
+        except ValueError:
+            raise RuntimeError('All SHELXD tasks failed to complete')
         if self._mode == 'advanced':
             result_ranks = get_shelxd_result_ranks(results,
                                                    self._spacegroups,
                                                    self._nsites,
                                                    self._ano_rlimits)
             aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
-            #pprint(aver_ranks)
             try:
-                best_sg, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
+                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
                                if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
                              key=lambda (_, v): min(v.values()))
-            except ValueError:
-                pass
+            except ValueError, err:
+                logging.debug(err)
 
             substruct_matches = get_substruct_matches(substructs,
                                                    self._spacegroups,
@@ -527,13 +516,40 @@ class Fast_ep:
                                                          self._nsites,
                                                          self._ano_rlimits)
                 write_shelxd_substructure(self._wd, best_substructure)
+
+                if best_keys[1] not in self._nsites:
+                    self._nsites.append(best_keys[1])
+                    sorted(self._nsites)
+                    jobs = []
+                    for spacegroup in self._spacegroups:
+                        for rlimit in self._ano_rlimits:
+                            wd = setup_shelxd_job(self._wd, (spacegroup, best_keys[1], rlimit), ins_text)
+                            jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
+                    if cluster:
+                        run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout, self._sge_project)
+                    else:
+                        pool = Pool(min(njobs, len(jobs)))
+                        pool.map(run_shelxd_local, jobs)
+                    last_results, last_substructure = get_shelxd_results(self._wd,
+                                             self._spacegroups,
+                                             [best_keys[1]],
+                                             self._ano_rlimits,
+                                             self._mode == 'advanced')
+                    write_shelxd_substructure(self._wd, last_substructure[best_keys])
+                    results.update(last_results)
+                    result_ranks = get_shelxd_result_ranks(results,
+                                                           self._spacegroups,
+                                                           self._nsites,
+                                                           self._ano_rlimits)
+                    aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
+
                 best_stats = results[best_keys]
                 #best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems()
-                #                            if (v['nsites'] > 0) and (k[0] == best_sg)],
+                #                            if (v['nsites'] > 0) and (k[0] == best_spacegroup)],
                 #                        key=lambda (_, v): v['CCres'])
-            except ValueError:
-                pass
-            log_rank_table(aver_ranks, self._spacegroups, best_sg)
+                log_rank_table(aver_ranks, self._spacegroups, best_spacegroup)
+            except ValueError, err:
+                logging.debug(err)
 
         (best_spacegroup,
          best_nsite,
@@ -543,6 +559,8 @@ class Fast_ep:
          best_ccweak,
          best_cfom,
          best_nsite_real) = [best_stats[col] for col in ['CCall', 'CCweak', 'CFOM', 'nsites']]
+        if self._mode == 'advanced':
+            best_nsite_real = best_nsite
 
         if self._mode == 'basic':
             log_shelxd_results(results, self._spacegroups, best_keys, self._xml_results)
@@ -582,8 +600,9 @@ class Fast_ep:
 
         best = os.path.join(self._wd, best_spacegroup.replace(':', '-'), str(best_nsite), "%.2f" % best_ano_rlimit)
 
-        endings = ['lst', 'pdb', 'res']
-
+        endings = ['lst', 'pdb']
+        if not os.path.isfile(os.path.join(self._wd, 'sad_fa.res')):
+            endings.append('res')
         for ending in endings:
             shutil.copyfile(os.path.join(best, 'sad_fa.%s' % ending),
                             os.path.join(self._wd, 'sad_fa.%s' % ending))
