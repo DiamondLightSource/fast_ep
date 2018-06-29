@@ -278,18 +278,20 @@ def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
     ha_dict = {}
     for spgr in spacegroups:
         sbm = [substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)]
-        ha_dict[spgr] = [[0] * len(mod.scatterers()) for mod in sbm]
+        ha_dict[spgr] = [[0] * len(mod.scatterers()) if mod else [] for mod in sbm]
         for idx1, idx2 in combinations(range(len(sbm)), 2):
             em1, em2 = sbm[idx1], sbm[idx2]
-            emma_matches = emma.model_matches(em1.as_emma_model(),
+            try:
+                emma_matches = emma.model_matches(em1.as_emma_model(),
                                               em2.as_emma_model(),
                                               tolerance=0.5,
                                               break_if_match_with_no_singles=False)
-            try:
                 best_match = next(iter(emma_matches.refined_matches))
                 for ha_em1, ha_em2 in best_match.pairs:
                     ha_dict[spgr][idx1][ha_em1] += 1
                     ha_dict[spgr][idx2][ha_em2] += 1
+            except AttributeError:
+                continue
             except StopIteration:
                 continue
     return ha_dict
