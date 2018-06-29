@@ -458,7 +458,7 @@ class Fast_ep:
         # to allocate on the command-line - this is done by passing -LN on the
         # command line where N is calculated as follows:
 
-        nrefl = max(10, 1 + 2 * int(1 + math.floor(self._nrefl / 100000.0)))
+        self._nrefl_flg = max(10, 1 + 2 * int(1 + math.floor(self._nrefl / 100000.0)))
 
         # modify the instruction file (.ins) for the number of sites and
         # symmetry operations for each run
@@ -468,7 +468,7 @@ class Fast_ep:
             for nsite in self._nsites:
                 for rlimit in self._ano_rlimits:
                     wd = setup_shelxd_job(self._wd, (spacegroup, nsite, rlimit), ins_text)
-                    jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
+                    jobs.append({'nrefl':self._nrefl_flg, 'ncpu':ncpu, 'wd':wd})
 
         # actually execute the tasks - either locally or on a cluster, allowing
         # for potential for fewer available machines than jobs
@@ -476,7 +476,7 @@ class Fast_ep:
         logging.info('Running %d x shelxd_mp jobs' % len(jobs))
 
         if cluster:
-            run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout, self._sge_project)
+            run_shelxd_drmaa_array(self._wd, self._nrefl_flg, ncpu, njobs, jobs, timeout, self._sge_project)
         else:
             pool = Pool(min(njobs, len(jobs)))
             pool.map(run_shelxd_local, jobs)
@@ -524,9 +524,9 @@ class Fast_ep:
                     for spacegroup in self._spacegroups:
                         for rlimit in self._ano_rlimits:
                             wd = setup_shelxd_job(self._wd, (spacegroup, best_keys[1], rlimit), ins_text)
-                            jobs.append({'nrefl':nrefl, 'ncpu':ncpu, 'wd':wd})
+                            jobs.append({'nrefl':self._nrefl_flg, 'ncpu':ncpu, 'wd':wd})
                     if cluster:
-                        run_shelxd_drmaa_array(self._wd, nrefl, ncpu, njobs, jobs, timeout, self._sge_project)
+                        run_shelxd_drmaa_array(self._wd, self._nrefl_flg, ncpu, njobs, jobs, timeout, self._sge_project)
                     else:
                         pool = Pool(min(njobs, len(jobs)))
                         pool.map(run_shelxd_local, jobs)
@@ -639,10 +639,10 @@ class Fast_ep:
                                 os.path.join(wd, 'sad_fa.%s' % ending))
 
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
-                         'ncycle':self._ncycle,
+                         'ncycle':self._ncycle, 'nrefl': self._nrefl_flg,
                          'hand':'original', 'wd':wd})
             jobs.append({'nsite':self._best_nsite, 'solv':solvent_fraction,
-                         'ncycle':self._ncycle,
+                         'ncycle':self._ncycle, 'nrefl': self._nrefl_flg,
                          'hand':'inverted', 'wd':wd})
 
         logging.info('Running %d x shelxe jobs' % len(jobs))
@@ -739,7 +739,7 @@ class Fast_ep:
         if self._trace:
             # rerun shelxe to trace the chain
             self._nres_trace = 0
-            arguments = ['sad', 'sad_fa', '-h%d' % self._best_nsite,
+            arguments = ['sad', 'sad_fa', '-h%d' % self._best_nsite, '-l%d' % self._nrefl_flg,
                          '-s%.2f' % best_solvent, '-d%.2f' % self._best_ano_rlimit, '-a3', '-m20']
             if not best_hand == 'original':
                 arguments.append('-i')

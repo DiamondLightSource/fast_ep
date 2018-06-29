@@ -25,15 +25,16 @@ def run_shelxe_cluster(_settings):
     solv = _settings['solv']
     hand = _settings['hand']
     resol = _settings['resol']
+    nrefl = _settings['nrefl']
     wd = _settings['wd']
 
     if hand == 'original':
         job_id = run_job_cluster(
-            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-d%f' % resol,
+            'shelxe', ['sad', 'sad_fa', '-l%d' % nrefl, '-h%d' % nsite, '-d%f' % resol,
                        '-s%f' % solv, '-m20'], [], wd, 1, timeout = 600)
     else:
         job_id = run_job_cluster(
-            'shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-d%f' % resol,
+            'shelxe', ['sad', 'sad_fa', '-l%d' % nrefl, '-h%d' % nsite, '-d%f' % resol,
                        '-s%f' % solv, '-m20', '-i'], [], wd, 1, timeout = 600)
 
     while not is_cluster_job_finished(job_id):
@@ -66,15 +67,16 @@ def run_shelxe_drmaa(njobs, job_settings):
                 solv = _settings['solv']
                 hand = _settings['hand']
                 resol = _settings['resol']
+                nrefl = _settings['nrefl']
                 wd = _settings['wd']
 
                 if hand == 'original':
                     setup_job_drmaa(job,
-                                    'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+                                    'shelxe', ['sad', 'sad_fa', '-l%d' % nrefl, '-h%d' % nsite,
                                     '-s%f' % solv, '-d%f' % resol, '-m20'], [], wd, 1, timeout = 600)
                 else:
                     setup_job_drmaa(job,
-                                    'shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+                                    'shelxe', ['sad', 'sad_fa', '-l%d' % nrefl, '-h%d' % nsite,
                                     '-s%f' % solv, '-d%f' % resol, '-m20', '-i'], [], wd, 1, timeout = 600)
 
                 jobs.append(session.runJob(job))
@@ -102,7 +104,8 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout, sge_project):
             hand = '-i' if _settings['hand'] == 'inverted' else ''
             script.write('WORKING_DIR_{idx}={wd}\n'.format(idx=idx,
                                                            wd= _settings['wd']))
-            script.write('COMMAND_{idx}="shelxe sad sad_fa -h{nsite} -s{solv} -m{ncycle} {hand}"\n'.format(idx=idx,
+            script.write('COMMAND_{idx}="shelxe sad sad_fa -l{nrefl} -h{nsite} -s{solv} -m{ncycle} {hand}"\n'.format(idx=idx,
+                                                                                                    nrefl=_settings['nrefl'],
                                                                                                      nsite=_settings['nsite'],
                                                                                                      solv=_settings['solv'],
                                                                                                      ncycle=_settings['ncycle'],
@@ -151,13 +154,14 @@ def run_shelxe_local(_settings):
     solv = _settings['solv']
     hand = _settings['hand']
     resol = _settings['resol']
+    nrefl = _settings['nrefl']
     wd = _settings['wd']
 
     if hand == 'original':
-        job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+        job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-l%d' % nrefl,
                                         '-s%f' % solv, '-d%f' % resol, '-m20'], [], wd)
     else:
-        job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite,
+        job_output = run_job('shelxe', ['sad', 'sad_fa', '-h%d' % nsite, '-l%d' % nrefl,
                                         '-s%f' % solv, '-d%f' % resol, '-m20', '-i'], [], wd)
 
     return
