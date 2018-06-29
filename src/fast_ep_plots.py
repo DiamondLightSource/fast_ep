@@ -193,21 +193,26 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
     fig, (ax1, ax2) = plt.subplots(2, figsize=(6, 4), sharex=True)
     for l, solvent_fraction in enumerate(sorted(fom_mapcc.keys()), 1):
         vals = fom_mapcc[solvent_fraction]
-        orig, other = vals['original'], vals['inverted']
+        try:
+            orig, other = vals['original'], vals['inverted']
+            x_vals = range(len(orig['resol']))
+            x_labels = orig['resol']
+        except KeyError:
+            continue
 
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv.'
         color = cm.Paired(float(l)/12)
-        x = range(len(orig['resol']))
-        ax1.plot(x, orig['fom'], lw=1, label=lb_orig, c=color)
-        ax1.plot(x, other['fom'], ls='dashed', label=lb_inv, lw=1, c=color)
-        ax2.plot(x, orig['mapcc'], lw=1, label=lb_orig, c=color)
-        ax2.plot(x, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
+        ax1.plot(x_vals, orig['fom'], lw=1, label=lb_orig, c=color)
+        ax1.plot(x_vals, other['fom'], ls='dashed', label=lb_inv, lw=1, c=color)
+        ax2.plot(x_vals, orig['mapcc'], lw=1, label=lb_orig, c=color)
+        ax2.plot(x_vals, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
 
     plt.xlabel('Resolution / $\mathregular{\AA}$')
     ax1.set_ylabel('<FOM>')
     ax2.set_ylabel('<mapCC>')
-    ax1.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,p: orig['resol'][p]))
+    ax1.xaxis.set_ticks(x_vals)
+    ax1.xaxis.set_major_formatter(ticker.FuncFormatter(lambda x,p: x_labels[p]))
     lgd = ax1.legend(bbox_to_anchor=[1.02, 1.], loc=2, ncol=2, fontsize=10)
 
     plt.savefig(png_file, bbox_extra_artists=(lgd,), bbox_inches='tight')
@@ -220,20 +225,27 @@ def plot_shelxe_mean_fom_cc(mean_fom_cc, png_file):
     fig, ax1 = plt.subplots(figsize=(8, 4))
     ax2 = ax1.twinx()
     solv_axis = sorted(mean_fom_cc.keys())
-    fom_orig, fom_inv, mapcc_orig, mapcc_inv = [[mean_fom_cc[solv][hand][stat] for solv in solv_axis]
+    fom_orig, fom_inv, mapcc_orig, mapcc_inv = [[(idx, mean_fom_cc[solv][hand][stat]) for idx, solv in enumerate(solv_axis)]
                                                 for stat, hand in product(['mean_fom', 'pseudo_cc'],
                                                                           ['original', 'inverted'])]
-    x = range(len(solv_axis))
-    ax1.plot(x, fom_orig, lw=1, label='Est.<FOM> Orig.', c='r')
-    ax1.plot(x, fom_inv, ls='dashed', label='Inv.', lw=1, c='r')
-    ax2.plot(x, mapcc_orig, lw=1, label='Pseudo-free CC Orig.', c='b')
-    ax2.plot(x, mapcc_inv, ls='dashed', label='Inv.', lw=1, c='b')
+    ax1.plot([x for x,_ in fom_orig],
+             [y for _,y in fom_orig],
+             lw=1, label='Est.<FOM> Orig.', c='r')
+    ax1.plot([x for x,_ in fom_inv],
+             [y for _,y in fom_inv],
+             ls='dashed', label='Inv.', lw=1, c='r')
+    ax2.plot([x for x,_ in mapcc_orig],
+             [y for _,y in mapcc_orig],
+             lw=1, label='Pseudo-free CC Orig.', c='b')
+    ax2.plot([x for x,_ in mapcc_inv],
+             [y for _,y in mapcc_inv],
+             ls='dashed', label='Inv.', lw=1, c='b')
 
     ax1.set_xlabel('Solvent content', fontsize=14)
     ax1.set_ylabel('Est.<FOM>', fontsize=14)
     ax2.set_ylabel('Pseudo-free CC', fontsize=14)
 
-    plt.xticks(x, solv_axis)
+    plt.xticks(range(len(solv_axis)), solv_axis)
     ax1.tick_params(labelsize=14)
     ax2.tick_params(labelsize=14)
 

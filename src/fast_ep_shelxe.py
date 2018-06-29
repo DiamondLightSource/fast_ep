@@ -184,7 +184,7 @@ def parse_shelxe_log(lst):
             mean_fom_mapcc = {'mean_fom': mean_fom,
                               'pseudo_cc': pseudo_cc}
         else:
-            for lbl, k, stat in [('d    inf', ' - ', 'resol'),
+            for lbl, k, stat in [('d    inf', ' -', 'resol'),
                                 ('<FOM>', None, 'fom'),
                                 ('<mapCC>', None, 'mapcc'),
                                 ('N      ', None, 'nrefl')]:
