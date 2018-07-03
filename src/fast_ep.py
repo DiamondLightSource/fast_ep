@@ -624,7 +624,7 @@ class Fast_ep:
         ncpu = self._cpu
 
         solvent_fractions = [0.25 + 0.05 * j for j in range(11)]
-        timeout = 600 + self._ncycle
+        timeout = 600 + 5 * self._ncycle
 
         jobs = [ ]
 
