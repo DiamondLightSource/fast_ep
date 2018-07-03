@@ -166,14 +166,14 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
     fig, ax = plt.subplots(figsize=(6, 4))
     for l, solvent_fraction in enumerate(sorted(shelxe_contrast.keys()), 1):
         contrast_vals = shelxe_contrast[solvent_fraction]
-        contrast_orig, contrast_other = contrast_vals['original'], contrast_vals['inverted']
-        cycles = [j + 1 for j in range(len(contrast_orig))]
+        cycles_orig, contrast_orig = contrast_vals['original']
+        cycles_other, contrast_other = contrast_vals['inverted']
 
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv. {}'.format(solvent_fraction)
         color = cm.Paired(float(l)/12)
-        ax.plot(cycles, contrast_orig, lw=1, c=color, label=lb_orig)
-        ax.plot(cycles, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
+        ax.plot(cycles_orig, contrast_orig, lw=1, c=color, label=lb_orig)
+        ax.plot(cycles_other, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
 
     plt.xlabel('Cycle', fontsize=14)
     plt.ylabel('Contrast', fontsize=14)

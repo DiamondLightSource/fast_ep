@@ -169,7 +169,7 @@ def run_shelxe_local(_settings):
 
 def parse_shelxe_log(lst):
 
-    contrast = []
+    contrast = [[], []]
     fom_mapcc = {}
     mean_fom_mapcc = {'mean_fom': float('nan'),
                       'pseudo_cc': float('nan')}
@@ -177,7 +177,8 @@ def parse_shelxe_log(lst):
     for record in open(lst):
         if 'Contrast' in record and 'Connect' in record:
             tokens = record.replace(',', ' ').split()
-            contrast.append(float(tokens[5]))
+            contrast[0].append(int(tokens[-1]))
+            contrast[1].append(float(tokens[5]))
         elif 'Estimated mean FOM =' in record:
             mean_fom = float(record.split()[4])
             pseudo_cc = float(record.split()[-2]) / 100.
