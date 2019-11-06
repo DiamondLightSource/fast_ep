@@ -17,11 +17,11 @@ import shutil
 import numpy as np
 import scipy.stats
 
+from cctbx import xray
 from cctbx import euclidean_model_matching as emma
 from cctbx.sgtbx import space_group_symbols
 import iotbx.pdb
-from iotbx.shelx import hklf, crystal_symmetry_from_ins,\
-    cctbx_xray_structure_from
+from iotbx.shelx import hklf, crystal_symmetry_from_ins
 from iotbx.shelx.writer import generator
 
 from lib.run_job import run_job, run_job_cluster, is_cluster_job_finished, setup_job_drmaa
@@ -237,7 +237,7 @@ def happy_shelxd_log(_shelxd_lst_file):
 def read_shelxd_substructure(_shelxd_res_file):
     '''Read SHELXD substructure model ignoring atoms at special positions
     and with low occupancy'''
-    res_model = cctbx_xray_structure_from(None, filename=_shelxd_res_file)
+    res_model = xray.structure.from_shelx(filename=_shelxd_res_file)
     spos_idx = [idx for idx,_ in enumerate(res_model.scatterers())
                     if idx not in res_model.special_position_indices()]
     spos_sel = res_model.by_index_selection(spos_idx)
