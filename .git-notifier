@@ -1,0 +1,12 @@
+# GIT change notifications sent out by DLS Jenkins
+
+link=https://github.com/DiamondLightSource/fast_ep
+commit_link=https://github.com/DiamondLightSource/fast_ep/commit/%s
+
+sender=fast_ep commit
+
+recipient=mxscisoftcommit
+recipient_domain=diamond.ac.uk
+
+replyto=mxscisoftcommit
+replyto_domain=diamond.ac.uk
