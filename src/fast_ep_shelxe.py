@@ -175,6 +175,7 @@ def parse_shelxe_log(lst):
                       'pseudo_cc': float('nan')}
 
     for record in open(lst):
+        record = record.replace("=", "= ")
         if 'Contrast' in record and 'Connect' in record:
             tokens = record.replace(',', ' ').split()
             contrast[0].append(int(tokens[-1]))
