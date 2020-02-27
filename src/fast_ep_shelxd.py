@@ -128,7 +128,7 @@ def run_shelxd_drmaa_array(wd, nrefl, ncpu, njobs, job_settings, timeout, sge_pr
             proj = '-P {}'.format(sge_project)
         else:
             proj = ''
-        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -pe smp {ncpu} -tc {njobs} -o /dev/null -e /dev/null'.format(proj=proj,
+        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -l mfree=4G -pe smp {ncpu} -tc {njobs} -o /dev/null -e /dev/null'.format(proj=proj,
                                                                                         timeout=timeout,
                                                                                         njobs=njobs,
                                                                                         ncpu=ncpu)

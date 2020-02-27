@@ -458,7 +458,7 @@ class Fast_ep:
         # to allocate on the command-line - this is done by passing -LN on the
         # command line where N is calculated as follows:
 
-        self._nrefl_flg = max(10, 1 + 2 * int(1 + math.floor(self._nrefl / 100000.0)))
+        self._nrefl_flg = max(25, 1 + 2 * int(1 + math.floor(self._nrefl / 100000.0)))
 
         # modify the instruction file (.ins) for the number of sites and
         # symmetry operations for each run

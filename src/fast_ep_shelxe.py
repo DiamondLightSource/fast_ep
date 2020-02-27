@@ -129,7 +129,7 @@ def run_shelxe_drmaa_array(wd, njobs, job_settings, timeout, sge_project):
             proj = '-P {}'.format(sge_project)
         else:
             proj = ''
-        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -tc {njobs}  -o /dev/null -e /dev/null'.format(proj=proj,
+        job.nativeSpecification = '-V {proj} -l h_rt={timeout} -l mfree=4G -tc {njobs}  -o /dev/null -e /dev/null'.format(proj=proj,
                                                                                                     timeout=timeout,
                                                                                                     njobs=njobs)
 
