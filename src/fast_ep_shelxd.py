@@ -14,6 +14,7 @@ import time
 from pprint import pformat
 import shutil
 
+from math import isnan
 import numpy as np
 import scipy.stats
 
@@ -360,35 +361,34 @@ def write_shelxd_substructure(wd, substruct):
 
 
 def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
-    result_ranks = {}
     cols = next(results.itervalues()).keys()
+    result_ranks = {k: {c: len(spacegroups) + 1 for c in cols} for k in product(spacegroups, nsites, ano_rlimits)}
     for nsite in nsites:
         for rlimit in ano_rlimits:
             for col in cols:
                 vals = sorted([(sg, results[(sg, nsite, rlimit)][col]) for sg in spacegroups],
                               key=lambda v: v[1], reverse=True)
-                for rk, (sg, _) in enumerate(vals, 1):
-                    try:
-                        result_ranks[(sg, nsite, rlimit)][col] = rk
-                    except:
-                        result_ranks[(sg, nsite, rlimit)] = {col: rk}
+                for rk, (sg, _) in enumerate((v for v in vals if not isnan(v[1])), 1):
+                    result_ranks[(sg, nsite, rlimit)][col] = rk
 
     return result_ranks
 
 
 def get_average_ranks(spacegroups, nsites, ano_rlims, results, result_ranks):
 
-    av_ranks = dict([(sg, {}) for sg in spacegroups])
+    cols = next(results.itervalues()).keys()
+    av_ranks = {sg: {c: len(spacegroups) + 1 for c in cols} for sg in spacegroups}
     for sg, rk in av_ranks.iteritems():
-        for col in ['CCall', 'CCweak', 'CFOM', 'CCres']:
+        for col in cols:
             sel_results = [(results[(sg, n, r)][col],
-                            result_ranks[(sg, n, r)][col]) for n, r in product(nsites, ano_rlims)]
+                            result_ranks[(sg, n, r)][col]) for n, r in product(nsites, ano_rlims)
+                            if not isnan(results[(sg, n, r)][col])]
             param_results = [sl[0] for sl in sel_results]
             rank_results = [sl[1] for sl in sel_results]
             try:
-                rk[col] = np.average(rank_results, weights=param_results)
+                rk[col] = np.average([r for r in rank_results if not isnan(r)], weights=param_results)
             except:
-                rk[col] = np.average(rank_results)
+                rk[col] = np.nanmean(rank_results)
     return av_ranks
 
 
