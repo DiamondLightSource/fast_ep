@@ -27,6 +27,7 @@ from cctbx.sgtbx import space_group_symbols
 from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
+from scitbx.array_family import flex
 
 if 'FAST_EP_ROOT' in os.environ:
     sys.path.append(os.environ['FAST_EP_ROOT'])
@@ -338,6 +339,10 @@ class Fast_ep:
                 indices = self._file_content.extract_original_index_miller_indices()
                 intensities = data.customized_copy(indices=indices, info=data.info())
 
+            # Extra scaling step is needed for small instensity values to work around
+            # one decimal point precision used by scalepack file writer.
+            if flex.max(flex.abs(intensities.data())) < 1000:
+                intensities = intensities.apply_scaling(target_max=1000)
             merge_scalepack.write(file_name = '.'.join([dtname, 'sca']),
                                   miller_array = intensities)
 
