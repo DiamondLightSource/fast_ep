@@ -385,10 +385,11 @@ def get_average_ranks(spacegroups, nsites, ano_rlims, results, result_ranks):
                             if not isnan(results[(sg, n, r)][col])]
             param_results = [sl[0] for sl in sel_results]
             rank_results = [sl[1] for sl in sel_results]
-            try:
-                rk[col] = np.average([r for r in rank_results if not isnan(r)], weights=param_results)
-            except:
-                rk[col] = np.nanmean(rank_results)
+            if rank_results:
+                try:
+                    rk[col] = np.average([r for r in rank_results if not isnan(r)], weights=param_results)
+                except:
+                    rk[col] = np.nanmean(rank_results)
     return av_ranks
 
 

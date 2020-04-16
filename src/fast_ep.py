@@ -505,9 +505,12 @@ class Fast_ep:
                                                    self._ano_rlimits)
             aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
             try:
-                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
-                               if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
-                             key=lambda (_, v): min(v.values()))
+                if len(self._spacegroups) == 1:
+                    best_spacegroup = next(iter(self._spacegroups))
+                else:
+                    best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
+                                    if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
+                                    key=lambda (_, v): min(v.values()))
             except ValueError, err:
                 logging.debug(err)
 
