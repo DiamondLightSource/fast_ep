@@ -519,37 +519,41 @@ class Fast_ep:
                                                    self._nsites,
                                                    self._ano_rlimits)
             try:
-                best_keys, best_substructure = select_substructure(substructs,
+                best_substruct_keys, best_substructure = select_substructure(substructs,
                                                          substruct_matches,
                                                          self._nsites,
                                                          self._ano_rlimits)
                 write_shelxd_substructure(self._wd, best_substructure)
 
-                if best_keys[1] not in self._nsites:
-                    self._nsites.append(best_keys[1])
+                if best_substruct_keys[1] not in self._nsites:
+                    self._nsites.append(best_substruct_keys[1])
                     sorted(self._nsites)
                     jobs = []
                     for spacegroup in self._spacegroups:
                         for rlimit in self._ano_rlimits:
-                            wd = setup_shelxd_job(self._wd, (spacegroup, best_keys[1], rlimit), ins_text)
+                            wd = setup_shelxd_job(self._wd, (spacegroup, best_substruct_keys[1], rlimit), ins_text)
                             jobs.append({'nrefl':self._nrefl_flg, 'ncpu':ncpu, 'wd':wd})
                     if cluster:
                         run_shelxd_drmaa_array(self._wd, self._nrefl_flg, ncpu, njobs, jobs, timeout, self._sge_project)
                     else:
                         pool = Pool(min(njobs, len(jobs)))
                         pool.map(run_shelxd_local, jobs)
-                    last_results, last_substructure = get_shelxd_results(self._wd,
-                                             self._spacegroups,
-                                             [best_keys[1]],
-                                             self._ano_rlimits,
-                                             self._mode == 'advanced')
-                    write_shelxd_substructure(self._wd, last_substructure[best_keys])
-                    results.update(last_results)
-                    result_ranks = get_shelxd_result_ranks(results,
-                                                           self._spacegroups,
-                                                           self._nsites,
-                                                           self._ano_rlimits)
-                    aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
+                    try:
+                        last_results, last_substructure = get_shelxd_results(self._wd,
+                                                 self._spacegroups,
+                                                 [best_substruct_keys[1]],
+                                                 self._ano_rlimits,
+                                                 self._mode == 'advanced')
+                        write_shelxd_substructure(self._wd, last_substructure[best_substruct_keys])
+                        results.update(last_results)
+                        result_ranks = get_shelxd_result_ranks(results,
+                                                               self._spacegroups,
+                                                               self._nsites,
+                                                               self._ano_rlimits)
+                        aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
+                        best_keys = best_substruct_keys
+                    except Exception:
+                        logging.warning("WARNING: Search for matching subset of atoms has failed. Using best CC value as a reference.")
 
                 best_stats = results[best_keys]
                 #best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems()
