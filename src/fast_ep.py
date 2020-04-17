@@ -511,6 +511,9 @@ class Fast_ep:
                     best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
                                     if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
                                     key=lambda (_, v): min(v.values()))
+                    best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                                                                                              best_spacegroup in k)],
+                                        key=lambda (_, v): v['CFOM'])
             except ValueError, err:
                 logging.debug(err)
 
@@ -523,11 +526,11 @@ class Fast_ep:
                                                          substruct_matches,
                                                          self._nsites,
                                                          self._ano_rlimits)
-                write_shelxd_substructure(self._wd, best_substructure)
+                
 
                 if best_substruct_keys[1] not in self._nsites:
                     self._nsites.append(best_substruct_keys[1])
-                    sorted(self._nsites)
+                    self._nsites = sorted(self._nsites)
                     jobs = []
                     for spacegroup in self._spacegroups:
                         for rlimit in self._ano_rlimits:
@@ -544,21 +547,30 @@ class Fast_ep:
                                                  [best_substruct_keys[1]],
                                                  self._ano_rlimits,
                                                  self._mode == 'advanced')
-                        write_shelxd_substructure(self._wd, last_substructure[best_substruct_keys])
                         results.update(last_results)
+                        substructs.update(last_substructure)
                         result_ranks = get_shelxd_result_ranks(results,
                                                                self._spacegroups,
                                                                self._nsites,
                                                                self._ano_rlimits)
                         aver_ranks = get_average_ranks(self._spacegroups, self._nsites, self._ano_rlimits, results, result_ranks)
-                        best_keys = best_substruct_keys
+                        try:
+                            if len(self._spacegroups) == 1:
+                                best_spacegroup = next(iter(self._spacegroups))
+                            else:
+                                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
+                                                if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
+                                                key=lambda (_, v): min(v.values()))
+                                best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                                                                                              best_spacegroup in k)],
+                                        key=lambda (_, v): v['CFOM'])
+                        except ValueError, err:
+                            logging.debug(err)
+                        write_shelxd_substructure(self._wd, substructs[best_keys])
                     except Exception:
                         logging.warning("WARNING: Search for matching subset of atoms has failed. Using best CC value as a reference.")
-
-                best_stats = results[best_keys]
-                #best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems()
-                #                            if (v['nsites'] > 0) and (k[0] == best_spacegroup)],
-                #                        key=lambda (_, v): v['CCres'])
+                else:
+                    write_shelxd_substructure(self._wd, best_substructure)
                 log_rank_table(aver_ranks, self._spacegroups, best_spacegroup)
             except ValueError, err:
                 logging.debug(err)

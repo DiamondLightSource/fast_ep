@@ -160,7 +160,8 @@ def run_shelxd_local(_settings):
 
 def analyse_res(wd):
 
-    _res = open(os.path.join(wd, 'sad_fa.res')).readlines()
+    with open(os.path.join(wd, 'sad_fa.res')) as fp:
+        _res = fp.readlines()
 
     try:
         cc = float(_res[0].split()[5])
@@ -263,12 +264,12 @@ def get_shelxd_results(pth, spacegroups, nsites, ano_rlimits, advanced=False):
                         results[(spacegroup, nsite, rlimit)].update(get_advanced_stats(wd))
                         models[(spacegroup, nsite, rlimit)] = read_shelxd_substructure(shelxd_res)
                 else:
-                    results[(spacegroup, nsite, rlimit)] = {'CCall' : -np.inf,
-                                                            'CCweak': -np.inf,
-                                                            'CFOM'  : -np.inf,
+                    results[(spacegroup, nsite, rlimit)] = {'CCall' : float("nan"),
+                                                            'CCweak': float("nan"),
+                                                            'CFOM'  : float("nan"),
                                                             'nsites': 0}
                     if advanced:
-                        results[(spacegroup, nsite, rlimit)].update({'CCres': -np.inf})
+                        results[(spacegroup, nsite, rlimit)].update({'CCres': float("nan")})
                         models[(spacegroup, nsite, rlimit)] = None
     return results, models
 
@@ -279,8 +280,9 @@ def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
     ha_dict = {}
     for spgr in spacegroups:
         sbm = [substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)]
-        ha_dict[spgr] = [[0] * len(mod.scatterers()) if mod else [] for mod in sbm]
-        for idx1, idx2 in combinations(range(len(sbm)), 2):
+        sbm = {(nsite, rlimit): substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)}
+        ha_dict[spgr] = {k: [0] * len(mod.scatterers()) if mod else [] for (k, mod) in sbm.iteritems()}
+        for idx1, idx2 in combinations(ha_dict[spgr].keys(), 2):
             em1, em2 = sbm[idx1], sbm[idx2]
             try:
                 emma_matches = emma.model_matches(em1.as_emma_model(),
@@ -295,37 +297,36 @@ def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
                 continue
             except StopIteration:
                 continue
+        logging.debug(pformat({spgr: ha_dict[spgr]}))
     return ha_dict
 
 
-def analyse_substructure(ha_list, thres):
+def analyse_substructure(ha_dict):
     '''Select SHELXD substructure with the highest number of scatterer matches'''
-    matched_list = [sorted(mod, reverse=True) for mod in ha_list if mod]
-    idx_list = [len([nd for nd in mod if nd > thres]) for mod in ha_list]
-    rank_dict = [(i, n_match) for i, (n_match, n_idx) in enumerate(zip(matched_list, idx_list)) if n_idx > 0]
-    idx_best_score, max_found_ha = max(rank_dict, key=lambda x:x[1])
-    return idx_best_score, max_found_ha, matched_list
+    matched_dict = {k: sorted(mod, reverse=True) for k, mod in ha_dict.iteritems() if mod}
+    idx_best_score, max_found_ha = max(matched_dict.iteritems(), key=lambda x:x[1])
+    logging.debug("Best substructure match %s %s" % (str(idx_best_score), pformat(matched_dict[idx_best_score]))) 
+    return idx_best_score, max_found_ha, matched_dict
 
 
 def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
     '''Select substructure model most consistently found in SHELXD results'''
-    nsites_resol_list = list(product(nsites, ano_rlimits))
     n_models = len(nsites)
     thres = max(3, 2 * n_models / 3 - 1)
     solutions = {}
-    for spgr, ha_list in ha_dict.iteritems():
+    for spgr, ha_spgr_dict in ha_dict.iteritems():
         try:
-            idx_best_score, max_found_ha, matched_list = analyse_substructure(ha_list, thres)
-            found_ha = [i for i,v in enumerate(ha_list[idx_best_score]) if not v < thres]
-            best_nsites, best_rlim = nsites_resol_list[idx_best_score]
-            ha_selection = substruct_dict[(spgr, best_nsites, best_rlim)].by_index_selection(found_ha)
+            idx_best_score, max_found_ha, matched_dict = analyse_substructure(ha_spgr_dict)
+            idx_found_ha = [i for i,v in enumerate(ha_spgr_dict[idx_best_score]) if not v < thres]
+            best_nsites, best_rlim = idx_best_score
+            ha_selection = substruct_dict[(spgr, best_nsites, best_rlim)].by_index_selection(idx_found_ha)
             found_model = substruct_dict[(spgr, best_nsites, best_rlim)].select(ha_selection)
             solutions[spgr] = {'nsites': best_nsites,
                                'rlim': best_rlim,
                                'found_nsites': len(found_model.scatterers()),
                                'substructure':found_model,
                                'max_found_ha': max_found_ha,
-                               'matched_list': matched_list}
+                               'matched_dict': matched_dict}
             logging.debug(pformat({spgr: solutions[spgr]}))
         except ValueError:
             continue
@@ -335,14 +336,14 @@ def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
     best_rlim = solutions[best_sg]['rlim']
     best_substructure = solutions[best_sg]['substructure']
 
-    print_substructure_results(solutions, nsites_resol_list)
+    print_substructure_results(solutions)
 
     return (best_sg, solutions[best_sg]['found_nsites'], best_rlim), best_substructure
 
 
-def print_substructure_results(solutions, nsites_resol_list):
+def print_substructure_results(solutions):
     logging.info('Substructure EMMA matching summary-----------------------')
-    logging.debug(pformat(dict([(spgr, zip(nsites_resol_list, sol['matched_list'])) for spgr, sol in solutions.items()])))
+    logging.debug(pformat(dict([(spgr, sol['matched_dict']) for spgr, sol in solutions.items()])))
     logging.info('{:>8} {:>8} {:>4}   {:<12}'.format('Spgr', 'Res.', 'No.', 'HA matches'))
     for spgr, vals in solutions.items():
             logging.info('{:>8} {:>8.2f} {:>4}   {:<12}'.format(spgr,
@@ -354,7 +355,7 @@ def print_substructure_results(solutions, nsites_resol_list):
 def write_shelxd_substructure(wd, substruct):
     '''Write substructure model from EMMA matching results'''
     pth = os.path.join(wd, 'sad_fa.res')
-    with open(pth,'w') as fp:
+    with open(pth, 'w') as fp:
         for line in generator(substruct, False, 'sad_fa.ins SAD',
                               full_matrix_least_squares_cycles=0):
             fp.write(line)
