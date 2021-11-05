@@ -390,22 +390,22 @@ class Fast_ep:
 
         for record in shelxc_output:
             if record.strip().startswith('Resl.'):
-                resolutions = map(float, record.replace(' - ', ' ').split()[2:])
+                resolutions = list(map(float, record.replace(' - ', ' ').split()[2:]))
                 table['dmin'] = resolutions
             if record.strip().startswith('<I/sig>'):
-                table['isig'] = map(float, record.split()[1:])
+                table['isig'] = list(map(float, record.split()[1:]))
             if record.strip().startswith('%Complete'):
-                table['comp'] = map(float, record.split()[1:])
+                table['comp'] = list(map(float, record.split()[1:]))
             if record.strip().startswith('<d"/sig>'):
-                table['dsig'] = map(float, record.split()[1:])
+                table['dsig'] = list(map(float, record.split()[1:]))
             try:
                 if record.strip().startswith('Chi-sq'):
-                    table['chi2'] = map(float, record.split()[1:])
+                    table['chi2'] = list(map(float, record.split()[1:]))
             except Exception:
                 logging.info('Cannot parse Chi-sq SHELXC output')
             try:
                 if record.strip().startswith('CC(1/2)'):
-                    table['cc12'] = map(float, record.split()[1:])
+                    table['cc12'] = list(map(float, record.split()[1:]))
             except Exception:
                 logging.info('Cannot parse CC(1/2) SHELXC output')
 
