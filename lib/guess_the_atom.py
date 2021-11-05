@@ -75,4 +75,4 @@ def guess_the_atom(hklin, nsites):
 
 if __name__ == '__main__':
 
-    print guess_the_atom(sys.argv[1], int(sys.argv[2]))
+    print(guess_the_atom(sys.argv[1], int(sys.argv[2])))

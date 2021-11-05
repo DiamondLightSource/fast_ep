@@ -204,7 +204,7 @@ def read_shelxe_log(pth, solvent_fractions):
 
     for solvent_fraction in solvent_fractions:
         solv_key = '%.2f' % solvent_fraction
-        for stats in res.itervalues():
+        for stats in res.values():
             stats[solv_key] = {}
 
         wd = os.path.join(pth, solv_key)

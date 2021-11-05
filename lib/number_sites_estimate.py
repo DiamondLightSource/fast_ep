@@ -43,7 +43,7 @@ def test():
     number_sites = number_sites_estimate(cell, spacegroup)
     assert(number_sites < 1)
     assert(number_sites > 0)
-    print 'OK'
+    print('OK')
 
 if __name__ == '__main__':
 
@@ -52,6 +52,6 @@ if __name__ == '__main__':
     if len(sys.argv) == 3:
         cell = map(float, sys.argv[1].split(','))
         spacegroup = sys.argv[2]
-        print '%.1f' % number_sites_estimate(cell, spacegroup)
+        print('%.1f' % number_sites_estimate(cell, spacegroup))
     else:
         test()

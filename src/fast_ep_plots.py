@@ -5,6 +5,7 @@
 # Plotting routines for SHELX results
 #
 
+import codecs
 import os.path
 from itertools import product
 from math import ceil
@@ -89,7 +90,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
     '''Summary plot of CCall / CCweak values from SHELXD for all
     space group, heavy atom number and resolution combinations'''
 
-    _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
+    _, nsites, ano_rlimits = map(sorted, map(set, zip(*list(results.keys()))))
 
     fig, axarr = plt.subplots(len(ano_rlimits), len(nsites), squeeze=False,
                               figsize=(4*len(nsites), 3*len(ano_rlimits)))
@@ -105,7 +106,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
             cc_all_sg.extend(cc_all)
             cc_weak_sg.extend(cc_weak)
 
-            tmp_ax.scatter(cc_all, cc_weak, c=color, s=5, label=spacegroup, lw=0, alpha=0.75)
+            tmp_ax.scatter(cc_all, cc_weak, color=color, s=5, label=spacegroup, lw=0, alpha=0.75)
             textstr = 'HA : %s  Resol: %.2f$\mathregular{\AA}$' % (nsite, rlimit)
             tmp_ax.set_title(textstr, fontsize=10)
             if i == len(ano_rlimits) - 1:
@@ -122,7 +123,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
     '''Histogram plot of SHELXD results for best solutions found for all
     combinations of space group, heavy atom number and resolution parameters'''
 
-    _, nsite_set, resol_set = map(sorted, map(set, zip(*results.keys())))
+    _, nsite_set, resol_set = map(sorted, map(set, zip(*list(results.keys()))))
 
     cols = ['CCall', 'CCweak', 'CFOM', 'nsites']
     plt_labels = dict(zip(cols, ['CCall', 'CCweak', 'CFOM', 'No. Found HA sites']))
@@ -141,7 +142,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
                     vals = results[(sg, nsite, resol)]
                 except:
                     continue
-                for col, y_val in y_vals.iteritems():
+                for col, y_val in y_vals.items():
                     y_val.append(vals[col])
 
         x_pos = [x + offset for x in range(len(x_vals))]
@@ -172,8 +173,8 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv. {}'.format(solvent_fraction)
         color = cm.Paired(float(l)/12)
-        ax.plot(cycles_orig, contrast_orig, lw=1, c=color, label=lb_orig)
-        ax.plot(cycles_other, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
+        ax.plot(cycles_orig, contrast_orig, lw=1, color=color, label=lb_orig)
+        ax.plot(cycles_other, contrast_other, ls='dashed', label=lb_inv, lw=1, color=color)
 
     plt.xlabel('Cycle', fontsize=14)
     plt.ylabel('Contrast', fontsize=14)
@@ -203,10 +204,10 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv.'
         color = cm.Paired(float(l)/12)
-        ax1.plot(x_vals, orig['fom'], lw=1, label=lb_orig, c=color)
-        ax1.plot(x_vals, other['fom'], ls='dashed', label=lb_inv, lw=1, c=color)
-        ax2.plot(x_vals, orig['mapcc'], lw=1, label=lb_orig, c=color)
-        ax2.plot(x_vals, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
+        ax1.plot(x_vals, orig['fom'], lw=1, label=lb_orig, color=color)
+        ax1.plot(x_vals, other['fom'], ls='dashed', label=lb_inv, lw=1, color=color)
+        ax2.plot(x_vals, orig['mapcc'], lw=1, label=lb_orig, color=color)
+        ax2.plot(x_vals, other['mapcc'], ls='dashed', label=lb_inv, lw=1, color=color)
 
     plt.xlabel('Resolution / $\mathregular{\AA}$')
     ax1.set_ylabel('<FOM>')
@@ -262,8 +263,9 @@ def plot_b64encoder(plot_list):
 
     res = {}
     for plt in plot_list:
-        enc_data = open(plt, 'rb').read().encode('base64').replace('\n', '')
-        tag,_ = os.path.splitext(plt)
-        res[tag] = enc_data
+        with open(plt, 'rb') as fh:
+            enc_data = codecs.encode(fh.read(), encoding="base64").decode("ascii")
+            tag,_ = os.path.splitext(plt)
+            res[tag] = enc_data.replace("\n", "")
 
     return res

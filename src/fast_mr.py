@@ -23,7 +23,7 @@ from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 
 if not 'FAST_EP_ROOT' in os.environ:
-    raise RuntimeError, 'FAST_EP_ROOT not set'
+    raise RuntimeError('FAST_EP_ROOT not set')
 
 fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 
@@ -88,8 +88,8 @@ class Fast_mr:
             break
 
         if not self._data:
-            raise RuntimeError, 'no intensity data found in %s' % \
-                self._hklin
+            raise RuntimeError('no intensity data found in %s' % \
+                self._hklin)
 
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()
@@ -168,7 +168,7 @@ class Fast_mr:
         if cluster:
             pool.map(run_phaser_cluster, jobs)
         else:
-            print 1/0
+            print(1/0)
 
         # now look for the results
         worked = []
@@ -186,7 +186,7 @@ class Fast_mr:
                         'SOLU SPAC', '').replace(' ', '')
                 if 'SOLU SET' in record:
                     tfz = float(record.replace('=', ' ').split()[5])
-            print 'Solution: %s %.2f' % (spacegroup, tfz)
+            print('Solution: %s %.2f' % (spacegroup, tfz))
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))
@@ -206,7 +206,7 @@ if __name__ == '__main__':
     fast_mr = Fast_mr(sys.argv[1], xyzin_and_ids)
     try:
         fast_mr.do_mr()
-    except RuntimeError, e:
+    except RuntimeError as e:
         fast_mr._log('*** MR: %s ***' % str(e))
         traceback.print_exc(file = open('fast_mr.error', 'w'))
         sys.exit(1)

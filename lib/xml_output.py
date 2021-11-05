@@ -4,7 +4,7 @@ import json
 
 def store_string_xml(xml_results, field_values, field_name):
     '''Format values for writing xml output'''
-    for field_number in xrange(0, len(field_values)):
+    for field_number in range(0, len(field_values)):
         field_number_name = str(field_number).zfill(2)
         k = field_name + field_number_name
         xml_results[k] = field_values[field_number]
@@ -22,13 +22,13 @@ def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
         'phasing_statistics_mapcc.xml')
 
     if not os.path.exists(xml_template):
-        print 'XML template not found: %s' % xml_template
+        print('XML template not found: %s' % xml_template)
         return
     if not os.path.exists(phs_stat_fom_template):
-        print 'XML template not found: %s' % phs_stat_fom_template
+        print('XML template not found: %s' % phs_stat_fom_template)
         return
     if not os.path.exists(phs_stat_mapcc_template):
-        print 'XML template not found: %s' % phs_stat_mapcc_template
+        print('XML template not found: %s' % phs_stat_mapcc_template)
         return
 
     # get phasing statistics from xml_results
@@ -73,7 +73,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
             continue
         total_bins += 1
 
-    for bin_number in xrange(total_bins):
+    for bin_number in range(total_bins):
         bin_number_name = str(bin_number).zfill(2)
         resolution_low = float(xml_results['RESOLUTION_LOW' + bin_number_name])
         resolution_high = float(xml_results['RESOLUTION_HIGH' + bin_number_name])
@@ -82,7 +82,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
         nreflections = int(xml_results['NREFLECTIONS' + bin_number_name])
         if resolution_low == None or resolution_high == None or \
           fom == None or mapcc == None or nreflections == None:
-            raise RuntimeError, "One of the fields is empty."
+            raise RuntimeError("One of the fields is empty.")
         all_phs_stat_fom += open(fom_template,'r').read().format(
                 bin_number = bin_number + 1,
                 number_bins = total_bins,

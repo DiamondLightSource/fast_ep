@@ -111,6 +111,6 @@ if __name__ == '__main__':
         status = False
 
     if status:
-        print 'Go'
+        print('Go')
     else:
-        print 'No'
+        print('No')

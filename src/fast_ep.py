@@ -28,6 +28,7 @@ from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 from scitbx.array_family import flex
+from functools import reduce
 
 if 'FAST_EP_ROOT' in os.environ:
     sys.path.append(os.environ['FAST_EP_ROOT'])
@@ -235,7 +236,7 @@ class Fast_ep:
             self._all_data = [m for m in reader.as_miller_arrays(merge_equivalents=self._is_merged)
                     if type(m.observation_type()) is observation_types.intensity and (m.anomalous_flag() if self._is_merged else True)]
             if not self._all_data:
-                raise RuntimeError, 'no intensity data found in %s' % self._hklin
+                raise RuntimeError('no intensity data found in %s' % self._hklin)
 
             if self._native_hklin:
                 native_reader = any_reflection_file(self._native_hklin)
@@ -246,7 +247,7 @@ class Fast_ep:
                 except StopIteration:
                     self._native = None
         else:
-            raise RuntimeError, 'Unsupported input file type: %s' % self._file_type
+            raise RuntimeError('Unsupported input file type: %s' % self._file_type)
 
         self._nrefl = self._file_content.n_reflections()
         self._pointgroup = self._file_content.space_group_number()
@@ -268,7 +269,7 @@ class Fast_ep:
             self._xml_results['SUBSTRUCTURE_METHOD'] = 'SAD'
         else:
             self._xml_results['SUBSTRUCTURE_METHOD'] = 'MAD'
-        zip_dataset_names = zip(dataset_names, self._all_data)
+        zip_dataset_names = list(zip(dataset_names, self._all_data))
         if self._native:
             zip_dataset_names.append(('nat', self._native))
 
@@ -389,22 +390,22 @@ class Fast_ep:
 
         for record in shelxc_output:
             if record.strip().startswith('Resl.'):
-                resolutions = map(float, record.replace(' - ', ' ').split()[2:])
+                resolutions = list(map(float, record.replace(' - ', ' ').split()[2:]))
                 table['dmin'] = resolutions
             if record.strip().startswith('<I/sig>'):
-                table['isig'] = map(float, record.split()[1:])
+                table['isig'] = list(map(float, record.split()[1:]))
             if record.strip().startswith('%Complete'):
-                table['comp'] = map(float, record.split()[1:])
+                table['comp'] = list(map(float, record.split()[1:]))
             if record.strip().startswith('<d"/sig>'):
-                table['dsig'] = map(float, record.split()[1:])
+                table['dsig'] = list(map(float, record.split()[1:]))
             try:
                 if record.strip().startswith('Chi-sq'):
-                    table['chi2'] = map(float, record.split()[1:])
+                    table['chi2'] = list(map(float, record.split()[1:]))
             except Exception:
                 logging.info('Cannot parse Chi-sq SHELXC output')
             try:
                 if record.strip().startswith('CC(1/2)'):
-                    table['cc12'] = map(float, record.split()[1:])
+                    table['cc12'] = list(map(float, record.split()[1:]))
             except Exception:
                 logging.info('Cannot parse CC(1/2) SHELXC output')
 
@@ -506,8 +507,8 @@ class Fast_ep:
                                              self._ano_rlimits,
                                              self._mode == 'advanced')
         try:
-            best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if v['nsites'] > 0],
-                                        key=lambda (_, v): v['CFOM'])
+            best_keys, best_stats = max([(k, v) for (k, v) in results.items() if v['nsites'] > 0],
+                                        key=lambda v: v[1]['CFOM'])
         except ValueError:
             raise RuntimeError('All SHELXD tasks failed to complete')
         if self._mode == 'advanced':
@@ -520,13 +521,13 @@ class Fast_ep:
                 if len(self._spacegroups) == 1:
                     best_spacegroup = next(iter(self._spacegroups))
                 else:
-                    best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
-                                    if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
-                                    key=lambda (_, v): min(v.values()))
-                    best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                    best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
+                                    if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
+                                    key=lambda v: min(v[1].values()))
+                    best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
-                                        key=lambda (_, v): v['CFOM'])
-            except ValueError, err:
+                                        key=lambda v: v[1]['CFOM'])
+            except ValueError as err:
                 logging.debug(err)
 
             substruct_matches = get_substruct_matches(substructs,
@@ -570,13 +571,13 @@ class Fast_ep:
                             if len(self._spacegroups) == 1:
                                 best_spacegroup = next(iter(self._spacegroups))
                             else:
-                                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
-                                                if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
-                                                key=lambda (_, v): min(v.values()))
-                                best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
+                                                if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
+                                                key=lambda v: min(v[1].values()))
+                                best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
-                                        key=lambda (_, v): v['CFOM'])
-                        except ValueError, err:
+                                        key=lambda v: v[1]['CFOM'])
+                        except ValueError as err:
                             logging.debug(err)
                         write_shelxd_substructure(self._wd, substructs[best_keys])
                     except Exception:
@@ -584,7 +585,7 @@ class Fast_ep:
                 else:
                     write_shelxd_substructure(self._wd, best_substructure)
                 log_rank_table(aver_ranks, self._spacegroups, best_spacegroup)
-            except ValueError, err:
+            except ValueError as err:
                 logging.debug(err)
 
         (best_spacegroup,
@@ -606,7 +607,7 @@ class Fast_ep:
         try:
             plot_shelxd_cc(self._wd, results, self._spacegroups, 'shelxd_cc.png')
             plot_shelxd_cc(self._wd,
-                           dict([(k,v) for k,v in results.iteritems() if k[1] == best_nsite and k[2] == best_ano_rlimit]),
+                           dict([(k,v) for k,v in results.items() if k[1] == best_nsite and k[2] == best_ano_rlimit]),
                            self._spacegroups, 'shelxd_cc_best.png')
             hist_shelxd_cc(self._wd, results, self._spacegroups)
         except:
@@ -616,7 +617,7 @@ class Fast_ep:
         logging.info('Time: %.2f' % (t1 - t0))
 
         if not best_spacegroup:
-            raise RuntimeError, 'All shelxd jobs failed'
+            raise RuntimeError('All shelxd jobs failed')
 
         logging.info('Best spacegroup: %s' % best_spacegroup)
         logging.info('Best nsites:     %d' % best_nsite_real)
@@ -899,7 +900,7 @@ class Fast_ep:
                 self._wd, json_file_name), 'w') as json_file:
                 json_data = xmlfile2json(filename)
                 json_file.write(json_data)
-        except ImportError, e:
+        except ImportError as e:
             pass
 
 
@@ -927,7 +928,7 @@ class Fast_ep:
                                                          'lowRes': self._xml_results['LOWRES'],
                                                          'highRes': self._xml_results['HIGHRES']}
         self._ispyb_data['PhasingStatistics'] = []
-        numberOfBins = len([k for k in self._xml_results.keys() if 'NREFLECTIONS' in k])
+        numberOfBins = len([k for k in list(self._xml_results.keys()) if 'NREFLECTIONS' in k])
         for metric in ('FOM', 'MAPCC'):
             for bin_number in range(numberOfBins):
                 bin_number_name = str(bin_number).zfill(2)
@@ -948,28 +949,28 @@ if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     try:
         fast_ep.fa_values()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** FA: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.find_sites()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** FIND: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.phase()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** PHASE %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.write_xml()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** WRITE_XML %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
@@ -977,7 +978,7 @@ if __name__ == '__main__':
     try:
         fast_ep.write_results()
         fast_ep.write_json()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** WRITE_RESULTS %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)

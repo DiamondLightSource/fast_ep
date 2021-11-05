@@ -201,7 +201,7 @@ def get_scipy():
   try:
     import scipy.cluster
     found = True
-  except ImportError, e:
+  except ImportError as e:
     found = False
 
   if not found and 'CCP4' in os.environ:
@@ -210,13 +210,13 @@ def get_scipy():
     try:
       import scipy.cluster
       found = True
-    except ImportError, e:
+    except ImportError as e:
       found = False
 
   if not found:
-      raise RuntimeError, 'fast_ep needs scipy'
+      raise RuntimeError('fast_ep needs scipy')
 
 
 if __name__ == '__main__':
 
-    print autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt')
+    print(autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt'))
