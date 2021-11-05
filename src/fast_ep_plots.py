@@ -5,6 +5,7 @@
 # Plotting routines for SHELX results
 #
 
+import codecs
 import os.path
 from itertools import product
 from math import ceil
@@ -262,8 +263,9 @@ def plot_b64encoder(plot_list):
 
     res = {}
     for plt in plot_list:
-        enc_data = open(plt, 'rb').read().encode('base64').replace('\n', '')
-        tag,_ = os.path.splitext(plt)
-        res[tag] = enc_data
+        with open(plt, 'rb') as fh:
+            enc_data = codecs.encode(fh.read(), encoding="base64").decode("ascii")
+            tag,_ = os.path.splitext(plt)
+            res[tag] = enc_data.replace("\n", "")
 
     return res
