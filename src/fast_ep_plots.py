@@ -106,7 +106,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
             cc_all_sg.extend(cc_all)
             cc_weak_sg.extend(cc_weak)
 
-            tmp_ax.scatter(cc_all, cc_weak, c=color, s=5, label=spacegroup, lw=0, alpha=0.75)
+            tmp_ax.scatter(cc_all, cc_weak, color=color, s=5, label=spacegroup, lw=0, alpha=0.75)
             textstr = 'HA : %s  Resol: %.2f$\mathregular{\AA}$' % (nsite, rlimit)
             tmp_ax.set_title(textstr, fontsize=10)
             if i == len(ano_rlimits) - 1:
@@ -173,8 +173,8 @@ def plot_shelxe_contrast(shelxe_contrast, png_file, add_legend=False):
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv. {}'.format(solvent_fraction)
         color = cm.Paired(float(l)/12)
-        ax.plot(cycles_orig, contrast_orig, lw=1, c=color, label=lb_orig)
-        ax.plot(cycles_other, contrast_other, ls='dashed', label=lb_inv, lw=1, c=color)
+        ax.plot(cycles_orig, contrast_orig, lw=1, color=color, label=lb_orig)
+        ax.plot(cycles_other, contrast_other, ls='dashed', label=lb_inv, lw=1, color=color)
 
     plt.xlabel('Cycle', fontsize=14)
     plt.ylabel('Contrast', fontsize=14)
@@ -204,10 +204,10 @@ def plot_shelxe_fom_mapcc(fom_mapcc, png_file):
         lb_orig = 'Orig. {}'.format(solvent_fraction)
         lb_inv = 'Inv.'
         color = cm.Paired(float(l)/12)
-        ax1.plot(x_vals, orig['fom'], lw=1, label=lb_orig, c=color)
-        ax1.plot(x_vals, other['fom'], ls='dashed', label=lb_inv, lw=1, c=color)
-        ax2.plot(x_vals, orig['mapcc'], lw=1, label=lb_orig, c=color)
-        ax2.plot(x_vals, other['mapcc'], ls='dashed', label=lb_inv, lw=1, c=color)
+        ax1.plot(x_vals, orig['fom'], lw=1, label=lb_orig, color=color)
+        ax1.plot(x_vals, other['fom'], ls='dashed', label=lb_inv, lw=1, color=color)
+        ax2.plot(x_vals, orig['mapcc'], lw=1, label=lb_orig, color=color)
+        ax2.plot(x_vals, other['mapcc'], ls='dashed', label=lb_inv, lw=1, color=color)
 
     plt.xlabel('Resolution / $\mathregular{\AA}$')
     ax1.set_ylabel('<FOM>')
