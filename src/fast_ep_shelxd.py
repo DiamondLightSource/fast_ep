@@ -427,7 +427,7 @@ def stats_shelxd_log(_shelxd_lst_file):
 
         _, pval = scipy.stats.shapiro(vals)
         percel = np.percentile(vals, 75)
-        quant = filter(lambda x: x < percel, vals)
+        quant = [x for x in vals if x < percel]
         try:
             mx = np.max(vals)
             md = np.mean(quant)
