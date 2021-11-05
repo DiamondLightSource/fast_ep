@@ -4,7 +4,7 @@ import json
 
 def store_string_xml(xml_results, field_values, field_name):
     '''Format values for writing xml output'''
-    for field_number in xrange(0, len(field_values)):
+    for field_number in range(0, len(field_values)):
         field_number_name = str(field_number).zfill(2)
         k = field_name + field_number_name
         xml_results[k] = field_values[field_number]
@@ -73,7 +73,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
             continue
         total_bins += 1
 
-    for bin_number in xrange(total_bins):
+    for bin_number in range(total_bins):
         bin_number_name = str(bin_number).zfill(2)
         resolution_low = float(xml_results['RESOLUTION_LOW' + bin_number_name])
         resolution_high = float(xml_results['RESOLUTION_HIGH' + bin_number_name])
