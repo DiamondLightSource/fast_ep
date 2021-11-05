@@ -28,6 +28,7 @@ from cctbx.xray import observation_types
 from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 from scitbx.array_family import flex
+from functools import reduce
 
 if 'FAST_EP_ROOT' in os.environ:
     sys.path.append(os.environ['FAST_EP_ROOT'])
