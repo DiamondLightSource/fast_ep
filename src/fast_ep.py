@@ -506,7 +506,7 @@ class Fast_ep:
                                              self._ano_rlimits,
                                              self._mode == 'advanced')
         try:
-            best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if v['nsites'] > 0],
+            best_keys, best_stats = max([(k, v) for (k, v) in results.items() if v['nsites'] > 0],
                                         key=lambda (_, v): v['CFOM'])
         except ValueError:
             raise RuntimeError('All SHELXD tasks failed to complete')
@@ -520,10 +520,10 @@ class Fast_ep:
                 if len(self._spacegroups) == 1:
                     best_spacegroup = next(iter(self._spacegroups))
                 else:
-                    best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
-                                    if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
+                    best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
+                                    if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
                                     key=lambda (_, v): min(v.values()))
-                    best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                    best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
                                         key=lambda (_, v): v['CFOM'])
             except ValueError, err:
@@ -570,10 +570,10 @@ class Fast_ep:
                             if len(self._spacegroups) == 1:
                                 best_spacegroup = next(iter(self._spacegroups))
                             else:
-                                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.iteritems()
-                                                if reduce(and_, (not isnan(x) for x in v.values())) and v.values()],
+                                best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
+                                                if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
                                                 key=lambda (_, v): min(v.values()))
-                                best_keys, best_stats = max([(k, v) for (k, v) in results.iteritems() if (v['nsites'] > 0 and 
+                                best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
                                         key=lambda (_, v): v['CFOM'])
                         except ValueError, err:
@@ -606,7 +606,7 @@ class Fast_ep:
         try:
             plot_shelxd_cc(self._wd, results, self._spacegroups, 'shelxd_cc.png')
             plot_shelxd_cc(self._wd,
-                           dict([(k,v) for k,v in results.iteritems() if k[1] == best_nsite and k[2] == best_ano_rlimit]),
+                           dict([(k,v) for k,v in results.items() if k[1] == best_nsite and k[2] == best_ano_rlimit]),
                            self._spacegroups, 'shelxd_cc_best.png')
             hist_shelxd_cc(self._wd, results, self._spacegroups)
         except:
@@ -927,7 +927,7 @@ class Fast_ep:
                                                          'lowRes': self._xml_results['LOWRES'],
                                                          'highRes': self._xml_results['HIGHRES']}
         self._ispyb_data['PhasingStatistics'] = []
-        numberOfBins = len([k for k in self._xml_results.keys() if 'NREFLECTIONS' in k])
+        numberOfBins = len([k for k in list(self._xml_results.keys()) if 'NREFLECTIONS' in k])
         for metric in ('FOM', 'MAPCC'):
             for bin_number in range(numberOfBins):
                 bin_number_name = str(bin_number).zfill(2)

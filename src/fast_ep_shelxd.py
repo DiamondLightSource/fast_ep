@@ -281,8 +281,8 @@ def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
     for spgr in spacegroups:
         sbm = [substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)]
         sbm = {(nsite, rlimit): substruct_dict[(spgr, nsite, rlimit)] for (nsite, rlimit) in product(nsites, ano_rlimits)}
-        ha_dict[spgr] = {k: [0] * len(mod.scatterers()) if mod else [] for (k, mod) in sbm.iteritems()}
-        for idx1, idx2 in combinations(ha_dict[spgr].keys(), 2):
+        ha_dict[spgr] = {k: [0] * len(mod.scatterers()) if mod else [] for (k, mod) in sbm.items()}
+        for idx1, idx2 in combinations(list(ha_dict[spgr].keys()), 2):
             em1, em2 = sbm[idx1], sbm[idx2]
             try:
                 emma_matches = emma.model_matches(em1.as_emma_model(),
@@ -303,8 +303,8 @@ def get_substruct_matches(substruct_dict, spacegroups, nsites, ano_rlimits):
 
 def analyse_substructure(ha_dict):
     '''Select SHELXD substructure with the highest number of scatterer matches'''
-    matched_dict = {k: sorted(mod, reverse=True) for k, mod in ha_dict.iteritems() if mod}
-    idx_best_score, max_found_ha = max(matched_dict.iteritems(), key=lambda x:x[1])
+    matched_dict = {k: sorted(mod, reverse=True) for k, mod in ha_dict.items() if mod}
+    idx_best_score, max_found_ha = max(iter(matched_dict.items()), key=lambda x:x[1])
     logging.debug("Best substructure match %s %s" % (str(idx_best_score), pformat(matched_dict[idx_best_score]))) 
     return idx_best_score, max_found_ha, matched_dict
 
@@ -314,7 +314,7 @@ def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
     n_models = len(nsites)
     thres = max(3, 2 * n_models / 3 - 1)
     solutions = {}
-    for spgr, ha_spgr_dict in ha_dict.iteritems():
+    for spgr, ha_spgr_dict in ha_dict.items():
         try:
             idx_best_score, max_found_ha, matched_dict = analyse_substructure(ha_spgr_dict)
             idx_found_ha = [i for i,v in enumerate(ha_spgr_dict[idx_best_score]) if not v < thres]
@@ -343,9 +343,9 @@ def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
 
 def print_substructure_results(solutions):
     logging.info('Substructure EMMA matching summary-----------------------')
-    logging.debug(pformat(dict([(spgr, sol['matched_dict']) for spgr, sol in solutions.items()])))
+    logging.debug(pformat(dict([(spgr, sol['matched_dict']) for spgr, sol in list(solutions.items())])))
     logging.info('{:>8} {:>8} {:>4}   {:<12}'.format('Spgr', 'Res.', 'No.', 'HA matches'))
-    for spgr, vals in solutions.items():
+    for spgr, vals in list(solutions.items()):
             logging.info('{:>8} {:>8.2f} {:>4}   {:<12}'.format(spgr,
                                                                 vals['rlim'],
                                                                 vals['nsites'],
@@ -362,7 +362,7 @@ def write_shelxd_substructure(wd, substruct):
 
 
 def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
-    cols = next(results.itervalues()).keys()
+    cols = list(next(iter(results.values())).keys())
     result_ranks = {k: {c: len(spacegroups) + 1 for c in cols} for k in product(spacegroups, nsites, ano_rlimits)}
     for nsite in nsites:
         for rlimit in ano_rlimits:
@@ -377,9 +377,9 @@ def get_shelxd_result_ranks(results, spacegroups, nsites, ano_rlimits):
 
 def get_average_ranks(spacegroups, nsites, ano_rlims, results, result_ranks):
 
-    cols = next(results.itervalues()).keys()
+    cols = list(next(iter(results.values())).keys())
     av_ranks = {sg: {c: len(spacegroups) + 1 for c in cols} for sg in spacegroups}
-    for sg, rk in av_ranks.iteritems():
+    for sg, rk in av_ranks.items():
         for col in cols:
             sel_results = [(results[(sg, n, r)][col],
                             result_ranks[(sg, n, r)][col]) for n, r in product(nsites, ano_rlims)
@@ -518,7 +518,7 @@ def log_rank_table(ranks, spacegroups, best_sg):
 
 def log_shelxd_results(results, spacegroups, best_keys, xml_results):
 
-    _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
+    _, nsites, ano_rlimits = map(sorted, map(set, zip(*list(results.keys()))))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
             logging.info('Spacegroup: %s (best)', spacegroup)
@@ -555,7 +555,7 @@ def log_shelxd_results(results, spacegroups, best_keys, xml_results):
 def log_shelxd_results_advanced(results, result_ranks, spacegroups, best_keys, xml_results):
 
 
-    _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
+    _, nsites, ano_rlimits = map(sorted, map(set, zip(*list(results.keys()))))
     for spacegroup in spacegroups:
         if spacegroup == best_keys[0]:
             logging.info('Spacegroup: %s (best)', spacegroup)

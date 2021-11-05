@@ -89,7 +89,7 @@ def plot_shelxd_cc(pth, results, spacegroups, png_file):
     '''Summary plot of CCall / CCweak values from SHELXD for all
     space group, heavy atom number and resolution combinations'''
 
-    _, nsites, ano_rlimits = map(sorted, map(set, zip(*results.keys())))
+    _, nsites, ano_rlimits = map(sorted, map(set, zip(*list(results.keys()))))
 
     fig, axarr = plt.subplots(len(ano_rlimits), len(nsites), squeeze=False,
                               figsize=(4*len(nsites), 3*len(ano_rlimits)))
@@ -122,7 +122,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
     '''Histogram plot of SHELXD results for best solutions found for all
     combinations of space group, heavy atom number and resolution parameters'''
 
-    _, nsite_set, resol_set = map(sorted, map(set, zip(*results.keys())))
+    _, nsite_set, resol_set = map(sorted, map(set, zip(*list(results.keys()))))
 
     cols = ['CCall', 'CCweak', 'CFOM', 'nsites']
     plt_labels = dict(zip(cols, ['CCall', 'CCweak', 'CFOM', 'No. Found HA sites']))
@@ -141,7 +141,7 @@ def hist_shelxd_cc(pth, results, spacegroups, rows=2):
                     vals = results[(sg, nsite, resol)]
                 except:
                     continue
-                for col, y_val in y_vals.iteritems():
+                for col, y_val in y_vals.items():
                     y_val.append(vals[col])
 
         x_pos = [x + offset for x in range(len(x_vals))]
