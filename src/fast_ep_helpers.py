@@ -219,4 +219,4 @@ def get_scipy():
 
 if __name__ == '__main__':
 
-    print autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt')
+    print(autosharp(180, 'gw56', 0.97966, 'Se', 8, 'xia2.txt'))

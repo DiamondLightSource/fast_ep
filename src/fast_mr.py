@@ -168,7 +168,7 @@ class Fast_mr:
         if cluster:
             pool.map(run_phaser_cluster, jobs)
         else:
-            print 1/0
+            print(1/0)
 
         # now look for the results
         worked = []
@@ -186,7 +186,7 @@ class Fast_mr:
                         'SOLU SPAC', '').replace(' ', '')
                 if 'SOLU SET' in record:
                     tfz = float(record.replace('=', ' ').split()[5])
-            print 'Solution: %s %.2f' % (spacegroup, tfz)
+            print('Solution: %s %.2f' % (spacegroup, tfz))
 
         t1 = time.time()
         self._log('Time: %.2f' % (t1 - t0))

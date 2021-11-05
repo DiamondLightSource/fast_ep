@@ -22,13 +22,13 @@ def write_ispyb_xml(filename, full_command_line, write_directory, xml_results):
         'phasing_statistics_mapcc.xml')
 
     if not os.path.exists(xml_template):
-        print 'XML template not found: %s' % xml_template
+        print('XML template not found: %s' % xml_template)
         return
     if not os.path.exists(phs_stat_fom_template):
-        print 'XML template not found: %s' % phs_stat_fom_template
+        print('XML template not found: %s' % phs_stat_fom_template)
         return
     if not os.path.exists(phs_stat_mapcc_template):
-        print 'XML template not found: %s' % phs_stat_mapcc_template
+        print('XML template not found: %s' % phs_stat_mapcc_template)
         return
 
     # get phasing statistics from xml_results

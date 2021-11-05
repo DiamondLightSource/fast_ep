@@ -82,7 +82,7 @@ def test():
     assert(generate_chiral_spacegroups('P222') == \
            generate_chiral_spacegroups_unique('P222'))
 
-    print 'OK'
+    print('OK')
 
 if __name__ == '__main__':
     test()
