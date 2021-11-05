@@ -508,7 +508,7 @@ class Fast_ep:
                                              self._mode == 'advanced')
         try:
             best_keys, best_stats = max([(k, v) for (k, v) in results.items() if v['nsites'] > 0],
-                                        key=lambda (_, v): v['CFOM'])
+                                        key=lambda v: v[1]['CFOM'])
         except ValueError:
             raise RuntimeError('All SHELXD tasks failed to complete')
         if self._mode == 'advanced':
@@ -523,10 +523,10 @@ class Fast_ep:
                 else:
                     best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
                                     if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
-                                    key=lambda (_, v): min(v.values()))
+                                    key=lambda v: min(v[1].values()))
                     best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
-                                        key=lambda (_, v): v['CFOM'])
+                                        key=lambda v: v[1]['CFOM'])
             except ValueError as err:
                 logging.debug(err)
 
@@ -573,10 +573,10 @@ class Fast_ep:
                             else:
                                 best_spacegroup, _ = min([(k, v) for (k, v) in aver_ranks.items()
                                                 if reduce(and_, (not isnan(x) for x in list(v.values()))) and list(v.values())],
-                                                key=lambda (_, v): min(v.values()))
+                                                key=lambda v: min(v[1].values()))
                                 best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
-                                        key=lambda (_, v): v['CFOM'])
+                                        key=lambda v: v[1]['CFOM'])
                         except ValueError as err:
                             logging.debug(err)
                         write_shelxd_substructure(self._wd, substructs[best_keys])
