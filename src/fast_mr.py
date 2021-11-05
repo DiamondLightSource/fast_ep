@@ -23,7 +23,7 @@ from iotbx.scalepack import merge as merge_scalepack
 from libtbx import introspection
 
 if not 'FAST_EP_ROOT' in os.environ:
-    raise RuntimeError, 'FAST_EP_ROOT not set'
+    raise RuntimeError('FAST_EP_ROOT not set')
 
 fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 
@@ -88,8 +88,8 @@ class Fast_mr:
             break
 
         if not self._data:
-            raise RuntimeError, 'no intensity data found in %s' % \
-                self._hklin
+            raise RuntimeError('no intensity data found in %s' % \
+                self._hklin)
 
         self._pointgroup = self._data.space_group().type().number()
         self._unit_cell = self._data.unit_cell().parameters()

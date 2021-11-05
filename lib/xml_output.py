@@ -82,7 +82,7 @@ def get_phasing_statistics(fom_template, cc_template, xml_results):
         nreflections = int(xml_results['NREFLECTIONS' + bin_number_name])
         if resolution_low == None or resolution_high == None or \
           fom == None or mapcc == None or nreflections == None:
-            raise RuntimeError, "One of the fields is empty."
+            raise RuntimeError("One of the fields is empty.")
         all_phs_stat_fom += open(fom_template,'r').read().format(
                 bin_number = bin_number + 1,
                 number_bins = total_bins,

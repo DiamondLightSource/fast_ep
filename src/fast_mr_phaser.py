@@ -12,7 +12,7 @@ import sys
 import time
 
 if not 'FAST_EP_ROOT' in os.environ:
-    raise RuntimeError, 'FAST_EP_ROOT not set'
+    raise RuntimeError('FAST_EP_ROOT not set')
 
 fast_ep_lib = os.path.join(os.environ['FAST_EP_ROOT'], 'lib')
 

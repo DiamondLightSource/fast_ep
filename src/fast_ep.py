@@ -235,7 +235,7 @@ class Fast_ep:
             self._all_data = [m for m in reader.as_miller_arrays(merge_equivalents=self._is_merged)
                     if type(m.observation_type()) is observation_types.intensity and (m.anomalous_flag() if self._is_merged else True)]
             if not self._all_data:
-                raise RuntimeError, 'no intensity data found in %s' % self._hklin
+                raise RuntimeError('no intensity data found in %s' % self._hklin)
 
             if self._native_hklin:
                 native_reader = any_reflection_file(self._native_hklin)
@@ -246,7 +246,7 @@ class Fast_ep:
                 except StopIteration:
                     self._native = None
         else:
-            raise RuntimeError, 'Unsupported input file type: %s' % self._file_type
+            raise RuntimeError('Unsupported input file type: %s' % self._file_type)
 
         self._nrefl = self._file_content.n_reflections()
         self._pointgroup = self._file_content.space_group_number()
@@ -616,7 +616,7 @@ class Fast_ep:
         logging.info('Time: %.2f' % (t1 - t0))
 
         if not best_spacegroup:
-            raise RuntimeError, 'All shelxd jobs failed'
+            raise RuntimeError('All shelxd jobs failed')
 
         logging.info('Best spacegroup: %s' % best_spacegroup)
         logging.info('Best nsites:     %d' % best_nsite_real)

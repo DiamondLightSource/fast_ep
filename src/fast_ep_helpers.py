@@ -214,7 +214,7 @@ def get_scipy():
       found = False
 
   if not found:
-      raise RuntimeError, 'fast_ep needs scipy'
+      raise RuntimeError('fast_ep needs scipy')
 
 
 if __name__ == '__main__':
