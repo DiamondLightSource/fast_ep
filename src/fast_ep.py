@@ -292,24 +292,30 @@ class Fast_ep:
                 merged = merger.array()
                 logging.info('Rmeas%%:      %.2f' % (100*merger.r_meas()))
                 logging.info('Rpim%%:       %.2f' % (100*merger.r_pim()))
-                logging.info('Nrefl:       %d / %d / %d' %
-                    (data.size(), merged.size(), merged.n_bijvoet_pairs()))
-                logging.info('DF/F:        %.3f' % merged.anomalous_signal())
-
-                differences = merged.anomalous_differences()
-
-                logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
-                                                 sum(differences.sigmas())))
-
+                if data.anomalous_flag():
+                    logging.info('Nrefl:       %d / %d / %d' %
+                        (data.size(), merged.size(), merged.n_bijvoet_pairs()))
+                    logging.info('DF/F:        %.3f' % merged.anomalous_signal())
+    
+                    differences = merged.anomalous_differences()
+    
+                    logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                                                     sum(differences.sigmas())))
+                else:
+                    logging.info('Nrefl:       %d / %d' %
+                        (data.size(), merged.size()))
             else:
-                logging.info('Nrefl:       %d / %d' % (data.size(),
-                                                    data.n_bijvoet_pairs()))
-                logging.info('DF/F:        %.3f' % data.anomalous_signal())
+                if data.anomalous_flag():
+                    logging.info('Nrefl:       %d / %d' % (data.size(),
+                                                        data.n_bijvoet_pairs()))
+                    logging.info('DF/F:        %.3f' % data.anomalous_signal())
 
-                differences = data.anomalous_differences()
+                    differences = data.anomalous_differences()
 
-                logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
-                                                 sum(differences.sigmas())))
+                    logging.info('dI/sig(dI):  %.3f' % (sum(abs(differences.data())) /
+                                                     sum(differences.sigmas())))
+                else:
+                    logging.info('Nrefl:       %d' % (data.size(),))
 
             table_vals = {'dtname': dtname,
                           'col_labels': data.info().label_string(),
@@ -391,10 +397,16 @@ class Fast_ep:
                 table['comp'] = map(float, record.split()[1:])
             if record.strip().startswith('<d"/sig>'):
                 table['dsig'] = map(float, record.split()[1:])
-            if record.strip().startswith('Chi-sq'):
-                table['chi2'] = map(float, record.split()[1:])
-            if record.strip().startswith('CC(1/2)'):
-                table['cc12'] = map(float, record.split()[1:])
+            try:
+                if record.strip().startswith('Chi-sq'):
+                    table['chi2'] = map(float, record.split()[1:])
+            except Exception:
+                logging.info('Cannot parse Chi-sq SHELXC output')
+            try:
+                if record.strip().startswith('CC(1/2)'):
+                    table['cc12'] = map(float, record.split()[1:])
+            except Exception:
+                logging.info('Cannot parse CC(1/2) SHELXC output')
 
         for row in ['isig', 'comp', 'dsig', 'chi2', 'cc12']:
             try:
