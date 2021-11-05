@@ -269,7 +269,7 @@ class Fast_ep:
             self._xml_results['SUBSTRUCTURE_METHOD'] = 'SAD'
         else:
             self._xml_results['SUBSTRUCTURE_METHOD'] = 'MAD'
-        zip_dataset_names = zip(dataset_names, self._all_data)
+        zip_dataset_names = list(zip(dataset_names, self._all_data))
         if self._native:
             zip_dataset_names.append(('nat', self._native))
 
