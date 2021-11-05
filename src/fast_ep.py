@@ -526,7 +526,7 @@ class Fast_ep:
                     best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
                                         key=lambda (_, v): v['CFOM'])
-            except ValueError, err:
+            except ValueError as err:
                 logging.debug(err)
 
             substruct_matches = get_substruct_matches(substructs,
@@ -576,7 +576,7 @@ class Fast_ep:
                                 best_keys, best_stats = max([(k, v) for (k, v) in results.items() if (v['nsites'] > 0 and 
                                                                                               best_spacegroup in k)],
                                         key=lambda (_, v): v['CFOM'])
-                        except ValueError, err:
+                        except ValueError as err:
                             logging.debug(err)
                         write_shelxd_substructure(self._wd, substructs[best_keys])
                     except Exception:
@@ -584,7 +584,7 @@ class Fast_ep:
                 else:
                     write_shelxd_substructure(self._wd, best_substructure)
                 log_rank_table(aver_ranks, self._spacegroups, best_spacegroup)
-            except ValueError, err:
+            except ValueError as err:
                 logging.debug(err)
 
         (best_spacegroup,
@@ -899,7 +899,7 @@ class Fast_ep:
                 self._wd, json_file_name), 'w') as json_file:
                 json_data = xmlfile2json(filename)
                 json_file.write(json_data)
-        except ImportError, e:
+        except ImportError as e:
             pass
 
 
@@ -948,28 +948,28 @@ if __name__ == '__main__':
     fast_ep = Fast_ep(Fast_ep_parameters())
     try:
         fast_ep.fa_values()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** FA: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.find_sites()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** FIND: %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.phase()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** PHASE %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
 
     try:
         fast_ep.write_xml()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** WRITE_XML %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)
@@ -977,7 +977,7 @@ if __name__ == '__main__':
     try:
         fast_ep.write_results()
         fast_ep.write_json()
-    except Exception, e:
+    except Exception as e:
         logging.error('*** WRITE_RESULTS %s ***' % str(e))
         traceback.print_exc(file = open('fast_ep.error', 'w'))
         sys.exit(1)

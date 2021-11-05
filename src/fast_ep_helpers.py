@@ -201,7 +201,7 @@ def get_scipy():
   try:
     import scipy.cluster
     found = True
-  except ImportError, e:
+  except ImportError as e:
     found = False
 
   if not found and 'CCP4' in os.environ:
@@ -210,7 +210,7 @@ def get_scipy():
     try:
       import scipy.cluster
       found = True
-    except ImportError, e:
+    except ImportError as e:
       found = False
 
   if not found:

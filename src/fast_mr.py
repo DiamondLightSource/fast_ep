@@ -206,7 +206,7 @@ if __name__ == '__main__':
     fast_mr = Fast_mr(sys.argv[1], xyzin_and_ids)
     try:
         fast_mr.do_mr()
-    except RuntimeError, e:
+    except RuntimeError as e:
         fast_mr._log('*** MR: %s ***' % str(e))
         traceback.print_exc(file = open('fast_mr.error', 'w'))
         sys.exit(1)
