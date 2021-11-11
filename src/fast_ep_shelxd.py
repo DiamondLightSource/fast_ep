@@ -344,12 +344,12 @@ def select_substructure(substruct_dict, ha_dict, nsites, ano_rlimits):
 def print_substructure_results(solutions):
     logging.info('Substructure EMMA matching summary-----------------------')
     logging.debug(pformat(dict([(spgr, sol['matched_dict']) for spgr, sol in list(solutions.items())])))
-    logging.info('{:>8} {:>8} {:>4}   {:<12}'.format('Spgr', 'Res.', 'No.', 'HA matches'))
-    for spgr, vals in list(solutions.items()):
-            logging.info('{:>8} {:>8.2f} {:>4}   {:<12}'.format(spgr,
+    logging.info('{:>8} {:>8} {:>4}   {:<}'.format('Spgr', 'Res.', 'No.', 'HA matches'))
+    for spgr, vals in solutions.items():
+        logging.info('{:>8} {:>8.2f} {:>4}   {:<}'.format(spgr,
                                                                 vals['rlim'],
                                                                 vals['nsites'],
-                                                                vals['max_found_ha']))
+                                                                str(vals['max_found_ha'])))
 
 
 def write_shelxd_substructure(wd, substruct):
