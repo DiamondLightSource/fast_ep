@@ -156,17 +156,11 @@ def map_sites_to_asu(spacegroup,
 def useful_number_sites(_cell, _pointgroup):
     nha = number_sites_estimate(_cell, _pointgroup)
 
-    result = []
-
-    for f in [0.25, 0.5, 1.0, 2.0, 4.0]:
-        nha_test = int(round(f * nha))
-        if nha_test and not nha_test in result:
-            result.append(nha_test)
-
+    result = {max(1, int(round(f * nha))) for f in [0.25, 0.5, 1.0, 2.0, 4.0]}
     if len(result) < 3:
-        result = [1, 2, 3]
+        result = {1, 2, 3}
 
-    return result
+    return list(result)
 
 def modify_ins_text(_ins_text, _spacegroup, _nsites, _rlimit):
     '''Update the text in a SHELXD .ins file to handle the correct number
