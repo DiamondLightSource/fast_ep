@@ -541,7 +541,7 @@ class Fast_ep:
                                                          self._ano_rlimits)
                 
 
-                if best_substruct_keys[1] not in self._nsites:
+                if best_substruct_keys[1] and best_substruct_keys[1] not in self._nsites:
                     self._nsites.append(best_substruct_keys[1])
                     self._nsites = sorted(self._nsites)
                     jobs = []
